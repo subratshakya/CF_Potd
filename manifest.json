@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Codeforces Daily Problems",
+  "version": "1.0.0",
+  "description": "Get personalized daily coding problems based on your Codeforces rating",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://codeforces.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://codeforces.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

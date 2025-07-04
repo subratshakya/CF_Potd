@@ -1,0 +1,978 @@
+/* Codeforces Daily Problems Extension - Minimalistic CF Style */
+
+/* Floating Action Button - CF Style */
+#cf-daily-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+}
+
+.cf-daily-fab {
+  background: #37a;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: normal;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cf-daily-fab:hover {
+  background: #258;
+}
+
+.cf-daily-fab svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Modal Styles - CF Minimalistic */
+#cf-daily-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10001;
+  display: none;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.cf-modal-overlay {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 50px 20px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cf-modal-open .cf-modal-overlay {
+  opacity: 1;
+}
+
+.cf-modal-content {
+  background: white;
+  border: 1px solid #ccc;
+  max-width: 700px;
+  width: 100%;
+  max-height: calc(100vh - 100px);
+  overflow: hidden;
+  transform: translateY(-10px);
+  transition: transform 0.2s ease;
+}
+
+.cf-modal-open .cf-modal-content {
+  transform: translateY(0);
+}
+
+.cf-modal-header {
+  background: #f7f7f7;
+  border-bottom: 1px solid #ccc;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cf-modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-modal-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.cf-tab-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-right: none;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.cf-tab-btn:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.cf-tab-btn:last-child {
+  border-right: 1px solid #ccc;
+  border-radius: 0 3px 3px 0;
+}
+
+.cf-tab-btn:hover {
+  background: #f0f0f0;
+}
+
+.cf-tab-active {
+  background: #37a !important;
+  color: white !important;
+  border-color: #37a !important;
+}
+
+.cf-modal-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.cf-modal-close:hover {
+  color: #333;
+}
+
+.cf-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  background: white;
+}
+
+/* Streak Section */
+.cf-streak-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+}
+
+.cf-streak-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.cf-streak-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.cf-streak-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cf-streak-number {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  line-height: 1;
+}
+
+.cf-streak-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: bold;
+}
+
+.cf-streak-best {
+  font-size: 10px;
+  color: #999;
+}
+
+/* Loading State - CF Style */
+.cf-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.cf-loading p {
+  margin: 10px 0 0 0;
+  font-size: 13px;
+}
+
+.cf-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #37a;
+  border-radius: 50%;
+  animation: cf-spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes cf-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error State */
+.cf-error {
+  text-align: center;
+  padding: 40px 20px;
+  color: #d00;
+}
+
+.cf-error p {
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.cf-retry-btn {
+  background: #37a;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.cf-retry-btn:hover {
+  background: #258;
+}
+
+/* Problems Container - CF Style */
+.cf-problems-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cf-user-info {
+  background: #f7f7f7;
+  border: 1px solid #ddd;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.cf-user-info h3 {
+  margin: 0 0 5px 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cf-user-info p {
+  margin: 0;
+  color: #666;
+  font-size: 12px;
+}
+
+.cf-warning {
+  color: #ff6b35 !important;
+  font-weight: bold;
+  margin-top: 5px !important;
+}
+
+.cf-date-info {
+  color: #37a !important;
+  font-weight: bold;
+}
+
+.cf-rating {
+  font-weight: bold;
+  color: #37a;
+}
+
+/* Username Rating Colors - CF Standard */
+.cf-username {
+  font-weight: bold;
+}
+
+.cf-username-newbie { color: #808080; }
+.cf-username-pupil { color: #008000; }
+.cf-username-specialist { color: #03a89e; }
+.cf-username-expert { color: #0000ff; }
+.cf-username-candidate-master { color: #aa00aa; }
+.cf-username-master { color: #ff8c00; }
+.cf-username-international-master { color: #ff8c00; }
+.cf-username-grandmaster { color: #ff0000; }
+.cf-username-international-grandmaster { color: #ff0000; }
+.cf-username-legendary-grandmaster { color: #aa0000; }
+
+/* Problem Sections */
+.cf-problem-section {
+  margin-bottom: 20px;
+}
+
+.cf-problem-section h4 {
+  margin: 0 0 5px 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-section-desc {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 12px;
+}
+
+/* Problem Cards - CF Table Style */
+.cf-problem-card {
+  border: 1px solid #ccc;
+  background: white;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+
+.cf-problem-card:hover {
+  background: #f9f9f9;
+}
+
+.cf-problem-solved {
+  background: #f0f8f0 !important;
+  border-color: #4caf50;
+}
+
+.cf-problem-solved:hover {
+  background: #e8f5e8 !important;
+}
+
+.cf-problem-unavailable {
+  background: #f5f5f5;
+  border-color: #ddd;
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+}
+
+.cf-problem-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cf-problem-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cf-problem-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: normal;
+  color: #37a;
+  text-decoration: none;
+  flex: 1;
+}
+
+.cf-problem-title:hover {
+  text-decoration: underline;
+}
+
+.cf-problem-rating {
+  color: white;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: bold;
+  min-width: 35px;
+  text-align: center;
+}
+
+.cf-solved-badge {
+  background: #4caf50;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.cf-problem-meta {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f9f9f9;
+  border-bottom: 1px solid #eee;
+  font-size: 11px;
+  color: #666;
+}
+
+.cf-problem-id {
+  font-family: monospace;
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-problem-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cf-tag {
+  color: #37a;
+  text-decoration: none;
+}
+
+.cf-tag:hover {
+  text-decoration: underline;
+}
+
+.cf-problem-actions {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cf-solve-btn {
+  background: #37a;
+  color: white;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 3px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.cf-solve-btn:hover {
+  background: #258;
+  text-decoration: none;
+  color: white;
+}
+
+.cf-solve-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.cf-solved-status {
+  color: #4caf50;
+  font-size: 13px;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cf-solved-status svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Calendar Styles */
+.cf-calendar-container {
+  max-width: 100%;
+}
+
+.cf-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.cf-calendar-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-calendar-nav {
+  background: #37a;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.cf-calendar-nav:hover {
+  background: #258;
+}
+
+.cf-calendar-grid {
+  border: 1px solid #ddd;
+  background: white;
+}
+
+.cf-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #f7f7f7;
+  border-bottom: 1px solid #ddd;
+}
+
+.cf-calendar-weekdays > div {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: #666;
+  border-right: 1px solid #eee;
+}
+
+.cf-calendar-weekdays > div:last-child {
+  border-right: none;
+}
+
+.cf-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.cf-calendar-day {
+  min-height: 60px;
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  padding: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.cf-calendar-day:nth-child(7n) {
+  border-right: none;
+}
+
+.cf-calendar-day:hover {
+  background: #f9f9f9;
+}
+
+.cf-calendar-day-other-month {
+  color: #ccc;
+  background: #fafafa;
+}
+
+.cf-calendar-day-other-month:hover {
+  background: #f5f5f5;
+}
+
+.cf-calendar-day-today {
+  background: #e3f2fd;
+  font-weight: bold;
+}
+
+.cf-calendar-day-today:hover {
+  background: #bbdefb;
+}
+
+.cf-calendar-day-future {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.cf-calendar-day-future:hover {
+  background: inherit;
+}
+
+.cf-calendar-day-number {
+  font-size: 12px;
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-calendar-day-other-month .cf-calendar-day-number {
+  color: #ccc;
+}
+
+.cf-calendar-day-indicators {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.cf-calendar-indicator {
+  font-size: 12px;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+.cf-calendar-indicator.cf-solved {
+  opacity: 1;
+}
+
+.cf-calendar-legend {
+  margin-top: 12px;
+  padding: 8px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+}
+
+.cf-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #666;
+}
+
+/* Leaderboard Styles */
+.cf-leaderboard-container {
+  max-width: 100%;
+}
+
+.cf-leaderboard-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f7f7f7;
+  border: 1px solid #ddd;
+}
+
+.cf-leaderboard-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-leaderboard-header p {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.cf-leaderboard-count {
+  color: #37a !important;
+  font-weight: bold;
+  margin-top: 4px !important;
+}
+
+.cf-leaderboard-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.cf-leaderboard-tab {
+  background: none;
+  border: 1px solid #ccc;
+  border-right: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.cf-leaderboard-tab:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.cf-leaderboard-tab:last-child {
+  border-right: 1px solid #ccc;
+  border-radius: 0 3px 3px 0;
+}
+
+.cf-leaderboard-tab:hover {
+  background: #f0f0f0;
+}
+
+.cf-leaderboard-tab.cf-tab-active {
+  background: #37a;
+  color: white;
+  border-color: #37a;
+}
+
+.cf-leaderboard-list {
+  border: 1px solid #ddd;
+  background: white;
+}
+
+.cf-leaderboard-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s ease;
+}
+
+.cf-leaderboard-item:last-child {
+  border-bottom: none;
+}
+
+.cf-leaderboard-item:hover {
+  background: #f9f9f9;
+}
+
+.cf-current-user {
+  background: #e3f2fd !important;
+  border-left: 3px solid #37a;
+}
+
+.cf-current-user:hover {
+  background: #bbdefb !important;
+}
+
+.cf-leaderboard-rank {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  min-width: 40px;
+  text-align: center;
+}
+
+.cf-leaderboard-user {
+  flex: 1;
+  margin-left: 16px;
+}
+
+.cf-leaderboard-user .cf-username {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.cf-user-title {
+  font-size: 11px;
+  color: #666;
+}
+
+.cf-leaderboard-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.cf-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.cf-stat-icon {
+  font-size: 14px;
+}
+
+.cf-stat-value {
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-stat-current {
+  color: #666;
+  font-size: 11px;
+}
+
+.cf-leaderboard-footer {
+  text-align: center;
+  padding: 12px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-top: none;
+  font-size: 11px;
+  color: #666;
+}
+
+.cf-leaderboard-footer p {
+  margin: 0;
+}
+
+.cf-login-hint {
+  color: #37a !important;
+  font-weight: bold;
+  margin-top: 8px !important;
+}
+
+.cf-leaderboard-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.cf-leaderboard-empty h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.cf-leaderboard-empty p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+}
+
+/* Rating Colors - CF Standard */
+.cf-rating-800 { background: #808080; }
+.cf-rating-900 { background: #808080; }
+.cf-rating-1000 { background: #808080; }
+.cf-rating-1100 { background: #808080; }
+.cf-rating-1200 { background: #008000; }
+.cf-rating-1300 { background: #008000; }
+.cf-rating-1400 { background: #03a89e; }
+.cf-rating-1500 { background: #03a89e; }
+.cf-rating-1600 { background: #0000ff; }
+.cf-rating-1700 { background: #0000ff; }
+.cf-rating-1800 { background: #0000ff; }
+.cf-rating-1900 { background: #aa00aa; }
+.cf-rating-2000 { background: #aa00aa; }
+.cf-rating-2100 { background: #ff8c00; }
+.cf-rating-2200 { background: #ff8c00; }
+.cf-rating-2300 { background: #ff0000; }
+.cf-rating-2400 { background: #ff0000; }
+.cf-rating-2500 { background: #ff0000; }
+.cf-rating-2600 { background: #aa0000; }
+.cf-rating-2700 { background: #aa0000; }
+.cf-rating-2800 { background: #aa0000; }
+.cf-rating-2900 { background: #aa0000; }
+.cf-rating-3000 { background: #aa0000; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .cf-modal-overlay {
+    padding: 20px 10px;
+  }
+  
+  .cf-modal-body {
+    padding: 12px;
+  }
+  
+  .cf-problem-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .cf-problem-header-right {
+    align-self: flex-end;
+  }
+  
+  .cf-problem-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .cf-problem-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .cf-streak-section {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .cf-calendar-day {
+    min-height: 50px;
+  }
+  
+  .cf-calendar-legend {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .cf-leaderboard-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .cf-leaderboard-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .cf-leaderboard-rank {
+    align-self: flex-start;
+  }
+  
+  .cf-leaderboard-user {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  #cf-daily-button {
+    bottom: 15px;
+    right: 15px;
+  }
+  
+  .cf-daily-fab span {
+    display: none;
+  }
+  
+  .cf-daily-fab {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  
+  .cf-modal-content {
+    max-width: 100%;
+    margin: 0;
+    height: 100vh;
+    max-height: 100vh;
+  }
+  
+  .cf-modal-overlay {
+    padding: 0;
+  }
+  
+  .cf-calendar-day {
+    min-height: 40px;
+  }
+  
+  .cf-calendar-day-number {
+    font-size: 11px;
+  }
+  
+  .cf-calendar-indicator {
+    font-size: 10px;
+  }
+  
+  .cf-leaderboard-tabs {
+    flex-direction: column;
+  }
+  
+  .cf-leaderboard-tab {
+    border-radius: 3px;
+    border-right: 1px solid #ccc;
+    margin-bottom: 1px;
+  }
+}
