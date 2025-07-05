@@ -9,6 +9,7 @@ class CodeforcesDaily {
     this.userSubmissions = null;
     this.userVerified = false;
     this.currentUserRating = null;
+    this.countdownInterval = null;
     this.init();
   }
 
@@ -337,6 +338,9 @@ class CodeforcesDaily {
         currentRandomStreak: 0,
         currentRatingStreak: 0
       };
+
+      // Recalculate current streaks on load to ensure accuracy
+      this.recalculateStreaks();
     } catch (error) {
       console.error('Error loading streak data:', error);
       this.streakData = {
@@ -358,6 +362,12 @@ class CodeforcesDaily {
     } catch (error) {
       console.error('Error saving streak data:', error);
     }
+  }
+
+  // Recalculate streaks from scratch to ensure accuracy
+  recalculateStreaks() {
+    this.updateRandomStreak();
+    this.updateRatingStreak();
   }
 
   async fetchUserSubmissions(date = new Date()) {
@@ -422,35 +432,30 @@ class CodeforcesDaily {
       }
     });
 
-    // Update streak data if problems were solved today
-    const today = new Date();
-    const isToday = this.formatDateKey(date) === this.formatDateKey(today);
+    // Update streak data if problems were solved
+    const dateKey = this.formatDateKey(date);
+    if (!this.streakData.solvedDates[dateKey]) {
+      this.streakData.solvedDates[dateKey] = {};
+    }
+
+    let updated = false;
     
-    if (isToday) {
-      const dateKey = this.formatDateKey(date);
-      if (!this.streakData.solvedDates[dateKey]) {
-        this.streakData.solvedDates[dateKey] = {};
-      }
+    if (randomSolved && !this.streakData.solvedDates[dateKey].random) {
+      this.streakData.solvedDates[dateKey].random = true;
+      this.streakData.lastRandomSolve = date.toDateString();
+      this.updateRandomStreak();
+      updated = true;
+    }
+    
+    if (ratingSolved && !this.streakData.solvedDates[dateKey].rating) {
+      this.streakData.solvedDates[dateKey].rating = true;
+      this.streakData.lastRatingSolve = date.toDateString();
+      this.updateRatingStreak();
+      updated = true;
+    }
 
-      let updated = false;
-      
-      if (randomSolved && !this.streakData.solvedDates[dateKey].random) {
-        this.streakData.solvedDates[dateKey].random = true;
-        this.streakData.lastRandomSolve = today.toDateString();
-        this.updateRandomStreak();
-        updated = true;
-      }
-      
-      if (ratingSolved && !this.streakData.solvedDates[dateKey].rating) {
-        this.streakData.solvedDates[dateKey].rating = true;
-        this.streakData.lastRatingSolve = today.toDateString();
-        this.updateRatingStreak();
-        updated = true;
-      }
-
-      if (updated) {
-        await this.saveStreakData();
-      }
+    if (updated) {
+      await this.saveStreakData();
     }
 
     return { random: randomSolved, rating: ratingSolved };
@@ -460,6 +465,7 @@ class CodeforcesDaily {
     let streak = 0;
     const today = new Date();
     
+    // Start from today and go backwards
     for (let i = 0; i < 365; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
@@ -468,6 +474,10 @@ class CodeforcesDaily {
       if (this.streakData.solvedDates[dateKey]?.random) {
         streak++;
       } else {
+        // If we're checking today and haven't solved it yet, don't break the streak
+        if (i === 0) {
+          continue;
+        }
         break;
       }
     }
@@ -480,6 +490,7 @@ class CodeforcesDaily {
     let streak = 0;
     const today = new Date();
     
+    // Start from today and go backwards
     for (let i = 0; i < 365; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() - i);
@@ -488,6 +499,10 @@ class CodeforcesDaily {
       if (this.streakData.solvedDates[dateKey]?.rating) {
         streak++;
       } else {
+        // If we're checking today and haven't solved it yet, don't break the streak
+        if (i === 0) {
+          continue;
+        }
         break;
       }
     }
@@ -504,6 +519,68 @@ class CodeforcesDaily {
   getUniversalDateKey(date = new Date()) {
     const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
     return utcDate.toISOString().split('T')[0];
+  }
+
+  // Get time until next day in UTC (when new problems are released)
+  getTimeUntilNextProblems() {
+    const now = new Date();
+    const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
+    
+    // Next day at 00:00 UTC
+    const nextDay = new Date(utcNow);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    nextDay.setUTCHours(0, 0, 0, 0);
+    
+    const timeLeft = nextDay.getTime() - utcNow.getTime();
+    
+    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+    
+    return {
+      hours: hours.toString().padStart(2, '0'),
+      minutes: minutes.toString().padStart(2, '0'),
+      seconds: seconds.toString().padStart(2, '0'),
+      totalMs: timeLeft
+    };
+  }
+
+  startCountdown() {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
+
+    this.countdownInterval = setInterval(() => {
+      this.updateCountdownDisplay();
+    }, 1000);
+  }
+
+  updateCountdownDisplay() {
+    const countdownElement = document.querySelector('.cf-countdown-timer');
+    if (!countdownElement) return;
+
+    const timeLeft = this.getTimeUntilNextProblems();
+    
+    if (timeLeft.totalMs <= 0) {
+      // Time's up! Reload problems for new day
+      countdownElement.innerHTML = `
+        <div class="cf-countdown-expired">
+          <span class="cf-countdown-icon">🎉</span>
+          <span>New problems available!</span>
+          <button class="cf-refresh-btn" onclick="location.reload()">Refresh</button>
+        </div>
+      `;
+      clearInterval(this.countdownInterval);
+      return;
+    }
+
+    countdownElement.innerHTML = `
+      <div class="cf-countdown-display">
+        <span class="cf-countdown-icon">⏰</span>
+        <span class="cf-countdown-label">Next problems in:</span>
+        <span class="cf-countdown-time">${timeLeft.hours}:${timeLeft.minutes}:${timeLeft.seconds}</span>
+      </div>
+    `;
   }
 
   async loadDailyProblems(date = new Date()) {
@@ -674,6 +751,12 @@ class CodeforcesDaily {
       modal.style.display = 'none';
       this.isModalOpen = false;
     }, 200);
+
+    // Clear countdown interval when modal is closed
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
   }
 
   async displayProblems() {
@@ -713,6 +796,18 @@ class CodeforcesDaily {
     
     modalBody.innerHTML = `
       <div class="cf-problems-container">
+        ${isToday ? `
+          <div class="cf-countdown-section">
+            <div class="cf-countdown-timer">
+              <div class="cf-countdown-display">
+                <span class="cf-countdown-icon">⏰</span>
+                <span class="cf-countdown-label">Next problems in:</span>
+                <span class="cf-countdown-time">Loading...</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+        
         ${this.streakData ? `
           <div class="cf-streak-section">
             <div class="cf-streak-item">
@@ -758,6 +853,11 @@ class CodeforcesDaily {
         </div>
       </div>
     `;
+
+    // Start countdown if viewing today's problems
+    if (isToday) {
+      this.startCountdown();
+    }
   }
 
   renderProblemCard(problem, type, isSolved = false) {

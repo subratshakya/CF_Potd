@@ -150,6 +150,75 @@
   background: white;
 }
 
+/* Countdown Section */
+.cf-countdown-section {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: linear-gradient(135deg, #37a 0%, #258 100%);
+  border: 1px solid #37a;
+  border-radius: 3px;
+  color: white;
+}
+
+.cf-countdown-timer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.cf-countdown-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.cf-countdown-icon {
+  font-size: 16px;
+}
+
+.cf-countdown-label {
+  font-weight: normal;
+}
+
+.cf-countdown-time {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 2px;
+  letter-spacing: 1px;
+}
+
+.cf-countdown-expired {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.cf-countdown-expired .cf-countdown-icon {
+  font-size: 18px;
+}
+
+.cf-refresh-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 4px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.cf-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 /* Streak Section */
 .cf-streak-section {
   display: flex;
@@ -894,6 +963,16 @@
   .cf-streak-section {
     flex-direction: column;
     gap: 12px;
+  }
+  
+  .cf-countdown-display {
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+  
+  .cf-countdown-time {
+    font-size: 18px;
   }
   
   .cf-calendar-day {
