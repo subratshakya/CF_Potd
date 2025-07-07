@@ -1032,6 +1032,9 @@ class CodeforcesDaily {
     this.switchTab('problems');
   }
 
+
+
+  
   async getStorageData(key) {
     return new Promise((resolve) => {
       chrome.storage.local.get([key], (result) => {
