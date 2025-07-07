@@ -9,6 +9,8 @@ chrome.runtime.onStartup.addListener(() => {
   cleanupOldCache();
 });
 
+
+
 async function cleanupOldCache() {
   try {
     const result = await chrome.storage.local.get(['cf-daily-cache']);
