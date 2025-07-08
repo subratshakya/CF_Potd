@@ -717,6 +717,20 @@
   color: #666;
 }
 
+.cf-calendar-day-completed {
+  background: #e8f5e8 !important;
+  border-color: #4caf50;
+}
+
+.cf-calendar-day-completed:hover {
+  background: #d4edda !important;
+}
+
+.cf-calendar-streak-indicator {
+  color: #4caf50;
+  font-weight: bold;
+  font-size: 12px;
+}
 /* Leaderboard Styles */
 .cf-leaderboard-container {
   max-width: 100%;
