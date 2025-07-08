@@ -324,33 +324,31 @@ class CodeforcesDaily {
     }
   }
 
+  // ===== NEW STREAK SYSTEM =====
+
   async loadStreakData() {
     try {
       const streakKey = this.currentUser ? `cf-streak-${this.currentUser}` : 'cf-streak-guest';
       const streakData = await this.getStorageData(streakKey);
       
       this.streakData = streakData || {
-        randomStreak: 0,
-        ratingStreak: 0,
-        lastRandomSolve: null,
-        lastRatingSolve: null,
-        solvedDates: {},
-        currentRandomStreak: 0,
-        currentRatingStreak: 0
+        currentStreak: 0,
+        maxStreak: 0,
+        completedDays: {}, // Format: 'YYYY-MM-DD': { random: true/false, rating: true/false, timestamp: number }
+        lastSubmissionDate: null,
+        lastSubmissionTimestamp: null
       };
 
-      // Recalculate current streaks on load to ensure accuracy
-      this.recalculateStreaks();
+      // Validate and update streak on load
+      await this.validateAndUpdateStreak();
     } catch (error) {
       console.error('Error loading streak data:', error);
       this.streakData = {
-        randomStreak: 0,
-        ratingStreak: 0,
-        lastRandomSolve: null,
-        lastRatingSolve: null,
-        solvedDates: {},
-        currentRandomStreak: 0,
-        currentRatingStreak: 0
+        currentStreak: 0,
+        maxStreak: 0,
+        completedDays: {},
+        lastSubmissionDate: null,
+        lastSubmissionTimestamp: null
       };
     }
   }
@@ -359,15 +357,147 @@ class CodeforcesDaily {
     try {
       const streakKey = this.currentUser ? `cf-streak-${this.currentUser}` : 'cf-streak-guest';
       await this.setStorageData(streakKey, this.streakData);
+      console.log('Streak data saved:', this.streakData);
     } catch (error) {
       console.error('Error saving streak data:', error);
     }
   }
 
-  // Recalculate streaks from scratch to ensure accuracy
-  recalculateStreaks() {
-    this.updateRandomStreak();
-    this.updateRatingStreak();
+  // Get UTC date string in YYYY-MM-DD format
+  getUTCDateString(date = new Date()) {
+    const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
+    return utcDate.toISOString().split('T')[0];
+  }
+
+  // Get current UTC date
+  getCurrentUTCDate() {
+    const now = new Date();
+    const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
+    return utcNow;
+  }
+
+  // Get time until next UTC day (00:00 UTC)
+  getTimeUntilNextUTCDay() {
+    const now = new Date();
+    const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
+    
+    // Next day at 00:00 UTC
+    const nextDay = new Date(utcNow);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    nextDay.setUTCHours(0, 0, 0, 0);
+    
+    const timeLeft = nextDay.getTime() - utcNow.getTime();
+    
+    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+    
+    return {
+      hours: hours.toString().padStart(2, '0'),
+      minutes: minutes.toString().padStart(2, '0'),
+      seconds: seconds.toString().padStart(2, '0'),
+      totalMs: timeLeft
+    };
+  }
+
+  // Check if a date is consecutive to another date
+  isConsecutiveDay(date1String, date2String) {
+    const date1 = new Date(date1String + 'T00:00:00Z');
+    const date2 = new Date(date2String + 'T00:00:00Z');
+    const diffTime = Math.abs(date2.getTime() - date1.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays === 1;
+  }
+
+  // Validate and update streak based on current state
+  async validateAndUpdateStreak() {
+    const todayUTC = this.getUTCDateString();
+    const yesterdayUTC = this.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    
+    console.log('Validating streak for today:', todayUTC, 'yesterday:', yesterdayUTC);
+    
+    // Check if today is completed
+    const todayCompleted = this.isDayCompleted(todayUTC);
+    const yesterdayCompleted = this.isDayCompleted(yesterdayUTC);
+    
+    console.log('Today completed:', todayCompleted, 'Yesterday completed:', yesterdayCompleted);
+    
+    // Calculate streak from scratch by going backwards from today
+    let streak = 0;
+    let checkDate = new Date();
+    
+    // If today is completed, start counting from today
+    if (todayCompleted) {
+      streak = 1;
+      checkDate.setDate(checkDate.getDate() - 1); // Start checking from yesterday
+    } else {
+      // If today is not completed, start from yesterday
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    
+    // Go backwards and count consecutive completed days
+    while (true) {
+      const checkDateString = this.getUTCDateString(checkDate);
+      if (this.isDayCompleted(checkDateString)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+      
+      // Safety check to prevent infinite loop
+      if (streak > 365) break;
+    }
+    
+    // Update streak data
+    const oldStreak = this.streakData.currentStreak;
+    this.streakData.currentStreak = streak;
+    this.streakData.maxStreak = Math.max(this.streakData.maxStreak, streak);
+    
+    console.log('Streak updated from', oldStreak, 'to', streak);
+    
+    await this.saveStreakData();
+  }
+
+  // Check if a specific day is completed (either random or rating problem solved)
+  isDayCompleted(dateString) {
+    const dayData = this.streakData.completedDays[dateString];
+    return dayData && (dayData.random || dayData.rating);
+  }
+
+  // Mark a problem as solved for a specific date
+  async markProblemSolved(problemType, solveDate = new Date()) {
+    const dateString = this.getUTCDateString(solveDate);
+    const timestamp = solveDate.getTime();
+    
+    console.log('Marking problem solved:', problemType, 'for date:', dateString);
+    
+    // Initialize day data if it doesn't exist
+    if (!this.streakData.completedDays[dateString]) {
+      this.streakData.completedDays[dateString] = {
+        random: false,
+        rating: false,
+        timestamp: null
+      };
+    }
+    
+    // Mark the specific problem type as solved
+    const wasAlreadySolved = this.streakData.completedDays[dateString][problemType];
+    this.streakData.completedDays[dateString][problemType] = true;
+    this.streakData.completedDays[dateString].timestamp = timestamp;
+    
+    // Update last submission info
+    this.streakData.lastSubmissionDate = dateString;
+    this.streakData.lastSubmissionTimestamp = timestamp;
+    
+    // Only recalculate streak if this is a new solve (not already solved)
+    if (!wasAlreadySolved) {
+      await this.validateAndUpdateStreak();
+    } else {
+      await this.saveStreakData();
+    }
+    
+    console.log('Problem marked as solved, current streak:', this.streakData.currentStreak);
   }
 
   async fetchUserSubmissions(date = new Date()) {
@@ -376,11 +506,12 @@ class CodeforcesDaily {
     }
 
     try {
-      // Get submissions from the start of the day to end of day
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Get submissions from the start of the UTC day to end of UTC day
+      const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
+      const startOfDay = new Date(utcDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(utcDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
 
       const response = await fetch(`https://codeforces.com/api/user.status?handle=${this.currentUser}&from=1&count=100`);
       const data = await response.json();
@@ -390,11 +521,12 @@ class CodeforcesDaily {
         return null;
       }
 
-      // Filter submissions for the specific date and only accepted ones
+      // Filter submissions for the specific UTC date and only accepted ones
       const daySubmissions = data.result.filter(submission => {
         const submissionTime = new Date(submission.creationTimeSeconds * 1000);
-        return submissionTime >= startOfDay && 
-               submissionTime <= endOfDay && 
+        const submissionUTC = new Date(submissionTime.getTime() + (submissionTime.getTimezoneOffset() * 60000));
+        return submissionUTC >= startOfDay && 
+               submissionUTC <= endOfDay && 
                submission.verdict === 'OK';
       });
 
@@ -433,83 +565,25 @@ class CodeforcesDaily {
     });
 
     // Update streak data if problems were solved
-    const dateKey = this.formatDateKey(date);
-    if (!this.streakData.solvedDates[dateKey]) {
-      this.streakData.solvedDates[dateKey] = {};
-    }
-
+    const dateString = this.getUTCDateString(date);
+    const dayData = this.streakData.completedDays[dateString];
+    
     let updated = false;
     
-    if (randomSolved && !this.streakData.solvedDates[dateKey].random) {
-      this.streakData.solvedDates[dateKey].random = true;
-      this.streakData.lastRandomSolve = date.toDateString();
-      this.updateRandomStreak();
+    if (randomSolved && (!dayData || !dayData.random)) {
+      await this.markProblemSolved('random', date);
       updated = true;
     }
     
-    if (ratingSolved && !this.streakData.solvedDates[dateKey].rating) {
-      this.streakData.solvedDates[dateKey].rating = true;
-      this.streakData.lastRatingSolve = date.toDateString();
-      this.updateRatingStreak();
+    if (ratingSolved && (!dayData || !dayData.rating)) {
+      await this.markProblemSolved('rating', date);
       updated = true;
-    }
-
-    if (updated) {
-      await this.saveStreakData();
     }
 
     return { random: randomSolved, rating: ratingSolved };
   }
 
-  updateRandomStreak() {
-    let streak = 0;
-    const today = new Date();
-    
-    // Start from today and go backwards
-    for (let i = 0; i < 365; i++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(today.getDate() - i);
-      const dateKey = this.formatDateKey(checkDate);
-      
-      if (this.streakData.solvedDates[dateKey]?.random) {
-        streak++;
-      } else {
-        // If we're checking today and haven't solved it yet, don't break the streak
-        if (i === 0) {
-          continue;
-        }
-        break;
-      }
-    }
-    
-    this.streakData.currentRandomStreak = streak;
-    this.streakData.randomStreak = Math.max(this.streakData.randomStreak, streak);
-  }
-
-  updateRatingStreak() {
-    let streak = 0;
-    const today = new Date();
-    
-    // Start from today and go backwards
-    for (let i = 0; i < 365; i++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(today.getDate() - i);
-      const dateKey = this.formatDateKey(checkDate);
-      
-      if (this.streakData.solvedDates[dateKey]?.rating) {
-        streak++;
-      } else {
-        // If we're checking today and haven't solved it yet, don't break the streak
-        if (i === 0) {
-          continue;
-        }
-        break;
-      }
-    }
-    
-    this.streakData.currentRatingStreak = streak;
-    this.streakData.ratingStreak = Math.max(this.streakData.ratingStreak, streak);
-  }
+  // ===== END NEW STREAK SYSTEM =====
 
   formatDateKey(date) {
     return date.toISOString().split('T')[0];
@@ -523,26 +597,7 @@ class CodeforcesDaily {
 
   // Get time until next day in UTC (when new problems are released)
   getTimeUntilNextProblems() {
-    const now = new Date();
-    const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
-    
-    // Next day at 00:00 UTC
-    const nextDay = new Date(utcNow);
-    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-    nextDay.setUTCHours(0, 0, 0, 0);
-    
-    const timeLeft = nextDay.getTime() - utcNow.getTime();
-    
-    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-    
-    return {
-      hours: hours.toString().padStart(2, '0'),
-      minutes: minutes.toString().padStart(2, '0'),
-      seconds: seconds.toString().padStart(2, '0'),
-      totalMs: timeLeft
-    };
+    return this.getTimeUntilNextUTCDay();
   }
 
   startCountdown() {
@@ -813,17 +868,17 @@ class CodeforcesDaily {
             <div class="cf-streak-item">
               <div class="cf-streak-icon">🔥</div>
               <div class="cf-streak-info">
-                <div class="cf-streak-number">${this.streakData.currentRandomStreak}</div>
-                <div class="cf-streak-label">Random Streak</div>
-                <div class="cf-streak-best">Best: ${this.streakData.randomStreak}</div>
+                <div class="cf-streak-number">${this.streakData.currentStreak}</div>
+                <div class="cf-streak-label">Current Streak</div>
+                <div class="cf-streak-best">Best: ${this.streakData.maxStreak}</div>
               </div>
             </div>
             <div class="cf-streak-item">
-              <div class="cf-streak-icon">🚀</div>
+              <div class="cf-streak-icon">📅</div>
               <div class="cf-streak-info">
-                <div class="cf-streak-number">${this.streakData.currentRatingStreak}</div>
-                <div class="cf-streak-label">Rating Streak</div>
-                <div class="cf-streak-best">Best: ${this.streakData.ratingStreak}</div>
+                <div class="cf-streak-number">${this.isDayCompleted(this.getUTCDateString()) ? '✓' : '○'}</div>
+                <div class="cf-streak-label">Today's Status</div>
+                <div class="cf-streak-best">${this.isDayCompleted(this.getUTCDateString()) ? 'Completed' : 'Pending'}</div>
               </div>
             </div>
           </div>
@@ -938,26 +993,28 @@ class CodeforcesDaily {
     `;
     
     const today = new Date();
-    const todayKey = this.formatDateKey(today);
+    const todayKey = this.getUTCDateString(today);
     
     for (let i = 0; i < 42; i++) {
       const cellDate = new Date(startDate);
       cellDate.setDate(startDate.getDate() + i);
-      const dateKey = this.formatDateKey(cellDate);
+      const dateKey = this.getUTCDateString(cellDate);
       
       const isCurrentMonth = cellDate.getMonth() === month;
       const isToday = dateKey === todayKey;
       const isPast = cellDate < today;
       const isFuture = cellDate > today;
       
-      const solvedData = this.streakData?.solvedDates[dateKey];
-      const hasRandomSolved = solvedData?.random || false;
-      const hasRatingSolved = solvedData?.rating || false;
+      const dayData = this.streakData?.completedDays[dateKey];
+      const hasRandomSolved = dayData?.random || false;
+      const hasRatingSolved = dayData?.rating || false;
+      const isDayCompleted = this.isDayCompleted(dateKey);
       
       let dayClass = 'cf-calendar-day';
       if (!isCurrentMonth) dayClass += ' cf-calendar-day-other-month';
       if (isToday) dayClass += ' cf-calendar-day-today';
       if (isFuture) dayClass += ' cf-calendar-day-future';
+      if (isDayCompleted) dayClass += ' cf-calendar-day-completed';
       
       calendarHTML += `
         <div class="${dayClass}" data-date="${dateKey}">
@@ -966,6 +1023,7 @@ class CodeforcesDaily {
             <div class="cf-calendar-day-indicators">
               <span class="cf-calendar-indicator ${hasRandomSolved ? 'cf-solved' : ''}" title="Random Problem">🔥</span>
               <span class="cf-calendar-indicator ${hasRatingSolved ? 'cf-solved' : ''}" title="Rating Problem">🚀</span>
+              ${isDayCompleted ? '<span class="cf-calendar-streak-indicator" title="Day Completed">✓</span>' : ''}
             </div>
           ` : ''}
         </div>
@@ -983,6 +1041,10 @@ class CodeforcesDaily {
           <div class="cf-legend-item">
             <span class="cf-calendar-indicator cf-solved">🚀</span>
             <span>Rating Problem Solved</span>
+          </div>
+          <div class="cf-legend-item">
+            <span class="cf-calendar-streak-indicator">✓</span>
+            <span>Day Completed (Streak)</span>
           </div>
         </div>
       </div>
@@ -1032,9 +1094,6 @@ class CodeforcesDaily {
     this.switchTab('problems');
   }
 
-
-
-  
   async getStorageData(key) {
     return new Promise((resolve) => {
       chrome.storage.local.get([key], (result) => {
@@ -1049,7 +1108,6 @@ class CodeforcesDaily {
     });
   }
 }
-
 
 // Initialize the extension when the page loads
 if (document.readyState === 'loading') {
