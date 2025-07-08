@@ -1109,6 +1109,8 @@ class CodeforcesDaily {
   }
 }
 
+
+
 // Initialize the extension when the page loads
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
