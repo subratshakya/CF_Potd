@@ -94,41 +94,6 @@
   color: #333;
 }
 
-.cf-modal-tabs {
-  display: flex;
-  gap: 0;
-}
-
-.cf-tab-btn {
-  background: none;
-  border: 1px solid #ccc;
-  border-right: none;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #666;
-  transition: all 0.2s ease;
-}
-
-.cf-tab-btn:first-child {
-  border-radius: 3px 0 0 3px;
-}
-
-.cf-tab-btn:last-child {
-  border-right: 1px solid #ccc;
-  border-radius: 0 3px 3px 0;
-}
-
-.cf-tab-btn:hover {
-  background: #f0f0f0;
-}
-
-.cf-tab-active {
-  background: #37a !important;
-  color: white !important;
-  border-color: #37a !important;
-}
-
 .cf-modal-close {
   background: none;
   border: none;
@@ -217,6 +182,32 @@
 
 .cf-refresh-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* Refresh Solutions Button */
+.cf-refresh-section {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.cf-refresh-solutions-btn {
+  background: #37a;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cf-refresh-solutions-btn:hover {
+  background: #258;
 }
 
 /* Streak Section */
@@ -558,366 +549,6 @@
   height: 12px;
 }
 
-/* Calendar Styles */
-.cf-calendar-container {
-  max-width: 100%;
-}
-
-.cf-calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-
-.cf-calendar-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-}
-
-.cf-calendar-nav {
-  background: #37a;
-  color: white;
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s ease;
-}
-
-.cf-calendar-nav:hover {
-  background: #258;
-}
-
-.cf-calendar-grid {
-  border: 1px solid #ddd;
-  background: white;
-}
-
-.cf-calendar-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  background: #f7f7f7;
-  border-bottom: 1px solid #ddd;
-}
-
-.cf-calendar-weekdays > div {
-  padding: 8px 4px;
-  text-align: center;
-  font-size: 11px;
-  font-weight: bold;
-  color: #666;
-  border-right: 1px solid #eee;
-}
-
-.cf-calendar-weekdays > div:last-child {
-  border-right: none;
-}
-
-.cf-calendar-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-}
-
-.cf-calendar-day {
-  min-height: 60px;
-  border-right: 1px solid #eee;
-  border-bottom: 1px solid #eee;
-  padding: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.cf-calendar-day:nth-child(7n) {
-  border-right: none;
-}
-
-.cf-calendar-day:hover {
-  background: #f9f9f9;
-}
-
-.cf-calendar-day-other-month {
-  color: #ccc;
-  background: #fafafa;
-}
-
-.cf-calendar-day-other-month:hover {
-  background: #f5f5f5;
-}
-
-.cf-calendar-day-today {
-  background: #e3f2fd;
-  font-weight: bold;
-}
-
-.cf-calendar-day-today:hover {
-  background: #bbdefb;
-}
-
-.cf-calendar-day-future {
-  color: #ccc;
-  cursor: not-allowed;
-}
-
-.cf-calendar-day-future:hover {
-  background: inherit;
-}
-
-.cf-calendar-day-number {
-  font-size: 12px;
-  font-weight: bold;
-  color: #333;
-}
-
-.cf-calendar-day-other-month .cf-calendar-day-number {
-  color: #ccc;
-}
-
-.cf-calendar-day-indicators {
-  display: flex;
-  gap: 2px;
-  margin-top: 2px;
-}
-
-.cf-calendar-indicator {
-  font-size: 12px;
-  opacity: 0.3;
-  transition: opacity 0.2s ease;
-}
-
-.cf-calendar-indicator.cf-solved {
-  opacity: 1;
-}
-
-.cf-calendar-legend {
-  margin-top: 12px;
-  padding: 8px;
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  display: flex;
-  gap: 16px;
-  font-size: 11px;
-}
-
-.cf-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #666;
-}
-
-.cf-calendar-day-completed {
-  background: #e8f5e8 !important;
-  border-color: #4caf50;
-}
-
-.cf-calendar-day-completed:hover {
-  background: #d4edda !important;
-}
-
-.cf-calendar-streak-indicator {
-  color: #4caf50;
-  font-weight: bold;
-  font-size: 12px;
-}
-/* Leaderboard Styles */
-.cf-leaderboard-container {
-  max-width: 100%;
-}
-
-.cf-leaderboard-header {
-  text-align: center;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #f7f7f7;
-  border: 1px solid #ddd;
-}
-
-.cf-leaderboard-header h3 {
-  margin: 0 0 8px 0;
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
-}
-
-.cf-leaderboard-header p {
-  margin: 0;
-  color: #666;
-  font-size: 13px;
-}
-
-.cf-leaderboard-count {
-  color: #37a !important;
-  font-weight: bold;
-  margin-top: 4px !important;
-}
-
-.cf-leaderboard-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 16px;
-  justify-content: center;
-}
-
-.cf-leaderboard-tab {
-  background: none;
-  border: 1px solid #ccc;
-  border-right: none;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #666;
-  transition: all 0.2s ease;
-}
-
-.cf-leaderboard-tab:first-child {
-  border-radius: 3px 0 0 3px;
-}
-
-.cf-leaderboard-tab:last-child {
-  border-right: 1px solid #ccc;
-  border-radius: 0 3px 3px 0;
-}
-
-.cf-leaderboard-tab:hover {
-  background: #f0f0f0;
-}
-
-.cf-leaderboard-tab.cf-tab-active {
-  background: #37a;
-  color: white;
-  border-color: #37a;
-}
-
-.cf-leaderboard-list {
-  border: 1px solid #ddd;
-  background: white;
-}
-
-.cf-leaderboard-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #eee;
-  transition: background-color 0.2s ease;
-}
-
-.cf-leaderboard-item:last-child {
-  border-bottom: none;
-}
-
-.cf-leaderboard-item:hover {
-  background: #f9f9f9;
-}
-
-.cf-current-user {
-  background: #e3f2fd !important;
-  border-left: 3px solid #37a;
-}
-
-.cf-current-user:hover {
-  background: #bbdefb !important;
-}
-
-.cf-leaderboard-rank {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  min-width: 40px;
-  text-align: center;
-}
-
-.cf-leaderboard-user {
-  flex: 1;
-  margin-left: 16px;
-}
-
-.cf-leaderboard-user .cf-username {
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 2px;
-}
-
-.cf-user-title {
-  font-size: 11px;
-  color: #666;
-}
-
-.cf-leaderboard-stats {
-  display: flex;
-  gap: 16px;
-}
-
-.cf-stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-}
-
-.cf-stat-icon {
-  font-size: 14px;
-}
-
-.cf-stat-value {
-  font-weight: bold;
-  color: #333;
-}
-
-.cf-stat-current {
-  color: #666;
-  font-size: 11px;
-}
-
-.cf-leaderboard-footer {
-  text-align: center;
-  padding: 12px;
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  border-top: none;
-  font-size: 11px;
-  color: #666;
-}
-
-.cf-leaderboard-footer p {
-  margin: 0;
-}
-
-.cf-login-hint {
-  color: #37a !important;
-  font-weight: bold;
-  margin-top: 8px !important;
-}
-
-.cf-leaderboard-empty {
-  text-align: center;
-  padding: 40px 20px;
-  color: #666;
-}
-
-.cf-leaderboard-empty h3 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
-}
-
-.cf-leaderboard-empty p {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-}
-
 /* Rating Colors - CF Standard */
 .cf-rating-800 { background: #808080; }
 .cf-rating-900 { background: #808080; }
@@ -988,34 +619,6 @@
   .cf-countdown-time {
     font-size: 18px;
   }
-  
-  .cf-calendar-day {
-    min-height: 50px;
-  }
-  
-  .cf-calendar-legend {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .cf-leaderboard-stats {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .cf-leaderboard-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .cf-leaderboard-rank {
-    align-self: flex-start;
-  }
-  
-  .cf-leaderboard-user {
-    margin-left: 0;
-  }
 }
 
 @media (max-width: 480px) {
@@ -1045,27 +648,5 @@
   
   .cf-modal-overlay {
     padding: 0;
-  }
-  
-  .cf-calendar-day {
-    min-height: 40px;
-  }
-  
-  .cf-calendar-day-number {
-    font-size: 11px;
-  }
-  
-  .cf-calendar-indicator {
-    font-size: 10px;
-  }
-  
-  .cf-leaderboard-tabs {
-    flex-direction: column;
-  }
-  
-  .cf-leaderboard-tab {
-    border-radius: 3px;
-    border-right: 1px solid #ccc;
-    margin-bottom: 1px;
   }
 }

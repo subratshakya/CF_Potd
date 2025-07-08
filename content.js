@@ -5,11 +5,9 @@ class CodeforcesDaily {
     this.dailyProblems = null;
     this.isModalOpen = false;
     this.streakData = null;
-    this.currentViewDate = new Date();
-    this.userSubmissions = null;
-    this.userVerified = false;
     this.currentUserRating = null;
     this.countdownInterval = null;
+    this.userVerified = false;
     this.init();
   }
 
@@ -273,10 +271,6 @@ class CodeforcesDaily {
         <div class="cf-modal-content">
           <div class="cf-modal-header">
             <h2>Daily Problems</h2>
-            <div class="cf-modal-tabs">
-              <button class="cf-tab-btn cf-tab-active" data-tab="problems">Problems</button>
-              <button class="cf-tab-btn" data-tab="calendar">Calendar</button>
-            </div>
             <button class="cf-modal-close" id="cf-modal-close">×</button>
           </div>
           <div class="cf-modal-body" id="cf-modal-body">
@@ -299,32 +293,10 @@ class CodeforcesDaily {
       this.closeModal();
     });
 
-    // Tab switching
-    modal.querySelectorAll('.cf-tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const tab = e.target.dataset.tab;
-        this.switchTab(tab);
-      });
-    });
-
     document.body.appendChild(modal);
   }
 
-  switchTab(tab) {
-    const modal = document.getElementById('cf-daily-modal');
-    const tabs = modal.querySelectorAll('.cf-tab-btn');
-    
-    tabs.forEach(t => t.classList.remove('cf-tab-active'));
-    modal.querySelector(`[data-tab="${tab}"]`).classList.add('cf-tab-active');
-
-    if (tab === 'problems') {
-      this.displayProblems();
-    } else if (tab === 'calendar') {
-      this.displayCalendar();
-    }
-  }
-
-  // ===== NEW STREAK SYSTEM =====
+  // ===== FIXED STREAK SYSTEM =====
 
   async loadStreakData() {
     try {
@@ -334,21 +306,18 @@ class CodeforcesDaily {
       this.streakData = streakData || {
         currentStreak: 0,
         maxStreak: 0,
-        completedDays: {}, // Format: 'YYYY-MM-DD': { random: true/false, rating: true/false, timestamp: number }
-        lastSubmissionDate: null,
-        lastSubmissionTimestamp: null
+        completedDays: {}, // Format: 'YYYY-MM-DD': { solved: true, timestamp: number, problems: ['problemId1', 'problemId2'] }
+        lastSubmissionDate: null
       };
 
-      // Validate and update streak on load
-      await this.validateAndUpdateStreak();
+      console.log('Loaded streak data:', this.streakData);
     } catch (error) {
       console.error('Error loading streak data:', error);
       this.streakData = {
         currentStreak: 0,
         maxStreak: 0,
         completedDays: {},
-        lastSubmissionDate: null,
-        lastSubmissionTimestamp: null
+        lastSubmissionDate: null
       };
     }
   }
@@ -367,13 +336,6 @@ class CodeforcesDaily {
   getUTCDateString(date = new Date()) {
     const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
     return utcDate.toISOString().split('T')[0];
-  }
-
-  // Get current UTC date
-  getCurrentUTCDate() {
-    const now = new Date();
-    const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
-    return utcNow;
   }
 
   // Get time until next UTC day (00:00 UTC)
@@ -400,190 +362,153 @@ class CodeforcesDaily {
     };
   }
 
-  // Check if a date is consecutive to another date
-  isConsecutiveDay(date1String, date2String) {
-    const date1 = new Date(date1String + 'T00:00:00Z');
-    const date2 = new Date(date2String + 'T00:00:00Z');
-    const diffTime = Math.abs(date2.getTime() - date1.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays === 1;
-  }
-
-  // Validate and update streak based on current state
-  async validateAndUpdateStreak() {
-    const todayUTC = this.getUTCDateString();
-    const yesterdayUTC = this.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  // Calculate streak from completed days
+  calculateStreak() {
+    const today = this.getUTCDateString();
+    const completedDays = Object.keys(this.streakData.completedDays).sort();
     
-    console.log('Validating streak for today:', todayUTC, 'yesterday:', yesterdayUTC);
+    if (completedDays.length === 0) {
+      return 0;
+    }
+
+    // Start from the most recent completed day
+    let streak = 0;
+    let currentDate = new Date();
     
     // Check if today is completed
-    const todayCompleted = this.isDayCompleted(todayUTC);
-    const yesterdayCompleted = this.isDayCompleted(yesterdayUTC);
-    
-    console.log('Today completed:', todayCompleted, 'Yesterday completed:', yesterdayCompleted);
-    
-    // Calculate streak from scratch by going backwards from today
-    let streak = 0;
-    let checkDate = new Date();
-    
-    // If today is completed, start counting from today
-    if (todayCompleted) {
+    if (this.streakData.completedDays[today]) {
       streak = 1;
-      checkDate.setDate(checkDate.getDate() - 1); // Start checking from yesterday
+      currentDate.setDate(currentDate.getDate() - 1);
     } else {
       // If today is not completed, start from yesterday
-      checkDate.setDate(checkDate.getDate() - 1);
+      currentDate.setDate(currentDate.getDate() - 1);
     }
-    
-    // Go backwards and count consecutive completed days
+
+    // Go backwards and count consecutive days
     while (true) {
-      const checkDateString = this.getUTCDateString(checkDate);
-      if (this.isDayCompleted(checkDateString)) {
+      const dateString = this.getUTCDateString(currentDate);
+      
+      if (this.streakData.completedDays[dateString]) {
         streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
+        currentDate.setDate(currentDate.getDate() - 1);
       } else {
         break;
       }
       
-      // Safety check to prevent infinite loop
+      // Safety check
       if (streak > 365) break;
     }
-    
-    // Update streak data
-    const oldStreak = this.streakData.currentStreak;
-    this.streakData.currentStreak = streak;
-    this.streakData.maxStreak = Math.max(this.streakData.maxStreak, streak);
-    
-    console.log('Streak updated from', oldStreak, 'to', streak);
-    
-    await this.saveStreakData();
+
+    return streak;
   }
 
-  // Check if a specific day is completed (either random or rating problem solved)
-  isDayCompleted(dateString) {
-    const dayData = this.streakData.completedDays[dateString];
-    return dayData && (dayData.random || dayData.rating);
-  }
-
-  // Mark a problem as solved for a specific date
-  async markProblemSolved(problemType, solveDate = new Date()) {
-    const dateString = this.getUTCDateString(solveDate);
-    const timestamp = solveDate.getTime();
-    
-    console.log('Marking problem solved:', problemType, 'for date:', dateString);
-    
-    // Initialize day data if it doesn't exist
-    if (!this.streakData.completedDays[dateString]) {
-      this.streakData.completedDays[dateString] = {
-        random: false,
-        rating: false,
-        timestamp: null
-      };
-    }
-    
-    // Mark the specific problem type as solved
-    const wasAlreadySolved = this.streakData.completedDays[dateString][problemType];
-    this.streakData.completedDays[dateString][problemType] = true;
-    this.streakData.completedDays[dateString].timestamp = timestamp;
-    
-    // Update last submission info
-    this.streakData.lastSubmissionDate = dateString;
-    this.streakData.lastSubmissionTimestamp = timestamp;
-    
-    // Only recalculate streak if this is a new solve (not already solved)
-    if (!wasAlreadySolved) {
-      await this.validateAndUpdateStreak();
-    } else {
-      await this.saveStreakData();
-    }
-    
-    console.log('Problem marked as solved, current streak:', this.streakData.currentStreak);
-  }
-
-  async fetchUserSubmissions(date = new Date()) {
-    if (!this.currentUser || !this.userVerified) {
-      return null;
+  // Check if user solved today's problems
+  async checkTodaysSolutions() {
+    if (!this.currentUser || !this.userVerified || !this.dailyProblems) {
+      console.log('Cannot check solutions - user not verified or no problems loaded');
+      return false;
     }
 
+    const today = this.getUTCDateString();
+    
+    // If already marked as completed today, don't check again
+    if (this.streakData.completedDays[today]) {
+      console.log('Today already marked as completed');
+      return true;
+    }
+
+    console.log('Checking if user solved today\'s problems...');
+    
     try {
-      // Get submissions from the start of the UTC day to end of UTC day
-      const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
-      const startOfDay = new Date(utcDate);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-      const endOfDay = new Date(utcDate);
-      endOfDay.setUTCHours(23, 59, 59, 999);
-
-      const response = await fetch(`https://codeforces.com/api/user.status?handle=${this.currentUser}&from=1&count=100`);
+      // Get recent submissions (last 50)
+      const response = await fetch(`https://codeforces.com/api/user.status?handle=${this.currentUser}&from=1&count=50`);
       const data = await response.json();
       
       if (data.status !== 'OK') {
         console.error('Failed to fetch submissions:', data);
-        return null;
+        return false;
       }
 
-      // Filter submissions for the specific UTC date and only accepted ones
-      const daySubmissions = data.result.filter(submission => {
+      const submissions = data.result;
+      const { ratingBased, random } = this.dailyProblems;
+      
+      // Get today's start and end in UTC
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setUTCHours(23, 59, 59, 999);
+
+      console.log('Checking submissions between:', todayStart, 'and', todayEnd);
+      console.log('Looking for problems:', ratingBased ? `${ratingBased.contestId}${ratingBased.index}` : 'none', 'and', random ? `${random.contestId}${random.index}` : 'none');
+
+      // Check if any submission today matches our daily problems
+      const solvedProblems = [];
+      
+      for (const submission of submissions) {
         const submissionTime = new Date(submission.creationTimeSeconds * 1000);
-        const submissionUTC = new Date(submissionTime.getTime() + (submissionTime.getTimezoneOffset() * 60000));
-        return submissionUTC >= startOfDay && 
-               submissionUTC <= endOfDay && 
-               submission.verdict === 'OK';
-      });
+        
+        // Check if submission is from today (UTC) and is accepted
+        if (submissionTime >= todayStart && submissionTime <= todayEnd && submission.verdict === 'OK') {
+          const problemId = `${submission.problem.contestId}${submission.problem.index}`;
+          
+          // Check if this matches any of our daily problems
+          if (ratingBased && `${ratingBased.contestId}${ratingBased.index}` === problemId) {
+            solvedProblems.push(problemId);
+            console.log('Found solved rating-based problem:', problemId);
+          }
+          
+          if (random && `${random.contestId}${random.index}` === problemId) {
+            solvedProblems.push(problemId);
+            console.log('Found solved random problem:', problemId);
+          }
+        }
+      }
 
-      return daySubmissions;
+      // If user solved at least one daily problem today, mark day as completed
+      if (solvedProblems.length > 0) {
+        console.log('User solved daily problems today:', solvedProblems);
+        await this.markDayCompleted(today, solvedProblems);
+        return true;
+      }
+
+      console.log('No daily problems solved today');
+      return false;
     } catch (error) {
-      console.error('Error fetching user submissions:', error);
-      return null;
+      console.error('Error checking today\'s solutions:', error);
+      return false;
     }
   }
 
-  async checkProblemsSolved(date = new Date()) {
-    if (!this.currentUser || !this.userVerified || !this.dailyProblems) {
-      return { random: false, rating: false };
-    }
-
-    const submissions = await this.fetchUserSubmissions(date);
-    if (!submissions) {
-      return { random: false, rating: false };
-    }
-
-    const { ratingBased, random } = this.dailyProblems;
-    let randomSolved = false;
-    let ratingSolved = false;
-
-    // Check if any submission matches our daily problems
-    submissions.forEach(submission => {
-      const problemId = `${submission.problem.contestId}${submission.problem.index}`;
-      
-      if (random && `${random.contestId}${random.index}` === problemId) {
-        randomSolved = true;
-      }
-      
-      if (ratingBased && `${ratingBased.contestId}${ratingBased.index}` === problemId) {
-        ratingSolved = true;
-      }
-    });
-
-    // Update streak data if problems were solved
-    const dateString = this.getUTCDateString(date);
-    const dayData = this.streakData.completedDays[dateString];
+  // Mark a day as completed and update streak
+  async markDayCompleted(dateString, solvedProblems = []) {
+    console.log('Marking day completed:', dateString, 'with problems:', solvedProblems);
     
-    let updated = false;
+    // Mark the day as completed
+    this.streakData.completedDays[dateString] = {
+      solved: true,
+      timestamp: Date.now(),
+      problems: solvedProblems
+    };
     
-    if (randomSolved && (!dayData || !dayData.random)) {
-      await this.markProblemSolved('random', date);
-      updated = true;
-    }
+    this.streakData.lastSubmissionDate = dateString;
     
-    if (ratingSolved && (!dayData || !dayData.rating)) {
-      await this.markProblemSolved('rating', date);
-      updated = true;
-    }
-
-    return { random: randomSolved, rating: ratingSolved };
+    // Recalculate streak
+    const newStreak = this.calculateStreak();
+    this.streakData.currentStreak = newStreak;
+    this.streakData.maxStreak = Math.max(this.streakData.maxStreak, newStreak);
+    
+    console.log('New streak:', newStreak, 'Max streak:', this.streakData.maxStreak);
+    
+    await this.saveStreakData();
   }
 
-  // ===== END NEW STREAK SYSTEM =====
+  // Check if today is completed
+  isTodayCompleted() {
+    const today = this.getUTCDateString();
+    return !!(this.streakData.completedDays[today]);
+  }
+
+  // ===== END FIXED STREAK SYSTEM =====
 
   formatDateKey(date) {
     return date.toISOString().split('T')[0];
@@ -663,6 +588,11 @@ class CodeforcesDaily {
           date: this.formatDateKey(date)
         };
         console.log('Loaded problems from cache');
+        
+        // Check if user solved today's problems after loading
+        if (this.formatDateKey(date) === this.getUTCDateString()) {
+          await this.checkTodaysSolutions();
+        }
         return;
       }
 
@@ -734,6 +664,11 @@ class CodeforcesDaily {
       }
 
       console.log('Fetched and cached new problems');
+
+      // Check if user solved today's problems after fetching
+      if (this.formatDateKey(date) === this.getUTCDateString()) {
+        await this.checkTodaysSolutions();
+      }
 
     } catch (error) {
       console.error('Error fetching daily problems:', error);
@@ -837,17 +772,20 @@ class CodeforcesDaily {
       return;
     }
 
-    // Check if problems are solved by fetching submissions
-    const problemDate = new Date(this.dailyProblems.date);
-    const solvedStatus = await this.checkProblemsSolved(problemDate);
+    // Check if problems are solved by checking submissions
+    const today = this.getUTCDateString();
+    const isToday = this.dailyProblems.date === today;
+    
+    // If viewing today's problems, check for solutions
+    if (isToday) {
+      await this.checkTodaysSolutions();
+    }
 
     const { userRating, isLoggedIn, ratingBased, random } = this.dailyProblems;
     const ratingClass = this.getRatingClass(userRating);
     const rankTitle = this.getRankTitle(userRating);
     
-    const today = new Date();
-    const todayKey = this.formatDateKey(today);
-    const isToday = this.dailyProblems.date === todayKey;
+    const todayCompleted = this.isTodayCompleted();
     
     modalBody.innerHTML = `
       <div class="cf-problems-container">
@@ -876,9 +814,9 @@ class CodeforcesDaily {
             <div class="cf-streak-item">
               <div class="cf-streak-icon">📅</div>
               <div class="cf-streak-info">
-                <div class="cf-streak-number">${this.isDayCompleted(this.getUTCDateString()) ? '✓' : '○'}</div>
+                <div class="cf-streak-number">${todayCompleted ? '✓' : '○'}</div>
                 <div class="cf-streak-label">Today's Status</div>
-                <div class="cf-streak-best">${this.isDayCompleted(this.getUTCDateString()) ? 'Completed' : 'Pending'}</div>
+                <div class="cf-streak-best">${todayCompleted ? 'Completed' : 'Pending'}</div>
               </div>
             </div>
           </div>
@@ -898,14 +836,22 @@ class CodeforcesDaily {
         <div class="cf-problem-section">
           <h4>${isLoggedIn ? 'Rating-Based Problem' : 'Beginner Problem'}</h4>
           <p class="cf-section-desc">${isLoggedIn ? 'Problem tailored to your skill level' : 'Problem for rating 1100-1500'}</p>
-          ${this.renderProblemCard(ratingBased, 'rating', solvedStatus.rating)}
+          ${this.renderProblemCard(ratingBased, 'rating', todayCompleted)}
         </div>
         
         <div class="cf-problem-section">
           <h4>Daily Random Problem</h4>
           <p class="cf-section-desc">Universal challenge for all users (same globally)</p>
-          ${this.renderProblemCard(random, 'random', solvedStatus.random)}
+          ${this.renderProblemCard(random, 'random', todayCompleted)}
         </div>
+        
+        ${isLoggedIn ? `
+          <div class="cf-refresh-section">
+            <button class="cf-refresh-solutions-btn" onclick="window.cfDaily.checkTodaysSolutions().then(() => window.cfDaily.displayProblems())">
+              🔄 Check for New Solutions
+            </button>
+          </div>
+        ` : ''}
       </div>
     `;
 
@@ -962,138 +908,6 @@ class CodeforcesDaily {
     `;
   }
 
-  displayCalendar() {
-    const modalBody = document.getElementById('cf-modal-body');
-    const currentDate = new Date(this.currentViewDate);
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    let calendarHTML = `
-      <div class="cf-calendar-container">
-        <div class="cf-calendar-header">
-          <button class="cf-calendar-nav" data-direction="-1">‹</button>
-          <h3>${monthNames[month]} ${year}</h3>
-          <button class="cf-calendar-nav" data-direction="1">›</button>
-        </div>
-        <div class="cf-calendar-grid">
-          <div class="cf-calendar-weekdays">
-            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-          </div>
-          <div class="cf-calendar-days">
-    `;
-    
-    const today = new Date();
-    const todayKey = this.getUTCDateString(today);
-    
-    for (let i = 0; i < 42; i++) {
-      const cellDate = new Date(startDate);
-      cellDate.setDate(startDate.getDate() + i);
-      const dateKey = this.getUTCDateString(cellDate);
-      
-      const isCurrentMonth = cellDate.getMonth() === month;
-      const isToday = dateKey === todayKey;
-      const isPast = cellDate < today;
-      const isFuture = cellDate > today;
-      
-      const dayData = this.streakData?.completedDays[dateKey];
-      const hasRandomSolved = dayData?.random || false;
-      const hasRatingSolved = dayData?.rating || false;
-      const isDayCompleted = this.isDayCompleted(dateKey);
-      
-      let dayClass = 'cf-calendar-day';
-      if (!isCurrentMonth) dayClass += ' cf-calendar-day-other-month';
-      if (isToday) dayClass += ' cf-calendar-day-today';
-      if (isFuture) dayClass += ' cf-calendar-day-future';
-      if (isDayCompleted) dayClass += ' cf-calendar-day-completed';
-      
-      calendarHTML += `
-        <div class="${dayClass}" data-date="${dateKey}">
-          <div class="cf-calendar-day-number">${cellDate.getDate()}</div>
-          ${(isPast || isToday) && isCurrentMonth ? `
-            <div class="cf-calendar-day-indicators">
-              <span class="cf-calendar-indicator ${hasRandomSolved ? 'cf-solved' : ''}" title="Random Problem">🔥</span>
-              <span class="cf-calendar-indicator ${hasRatingSolved ? 'cf-solved' : ''}" title="Rating Problem">🚀</span>
-              ${isDayCompleted ? '<span class="cf-calendar-streak-indicator" title="Day Completed">✓</span>' : ''}
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }
-    
-    calendarHTML += `
-          </div>
-        </div>
-        <div class="cf-calendar-legend">
-          <div class="cf-legend-item">
-            <span class="cf-calendar-indicator cf-solved">🔥</span>
-            <span>Random Problem Solved</span>
-          </div>
-          <div class="cf-legend-item">
-            <span class="cf-calendar-indicator cf-solved">🚀</span>
-            <span>Rating Problem Solved</span>
-          </div>
-          <div class="cf-legend-item">
-            <span class="cf-calendar-streak-indicator">✓</span>
-            <span>Day Completed (Streak)</span>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    modalBody.innerHTML = calendarHTML;
-    
-    // Add event listeners for calendar navigation
-    modalBody.querySelectorAll('.cf-calendar-nav').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const direction = parseInt(e.target.dataset.direction);
-        this.changeMonth(direction);
-      });
-    });
-    
-    // Add event listeners for date selection
-    modalBody.querySelectorAll('.cf-calendar-day').forEach(day => {
-      day.addEventListener('click', (e) => {
-        const dateKey = e.currentTarget.dataset.date;
-        if (dateKey && !e.currentTarget.classList.contains('cf-calendar-day-future')) {
-          this.selectCalendarDate(dateKey);
-        }
-      });
-    });
-  }
-
-  changeMonth(direction) {
-    this.currentViewDate.setMonth(this.currentViewDate.getMonth() + direction);
-    this.displayCalendar();
-  }
-
-  async selectCalendarDate(dateKey) {
-    const selectedDate = new Date(dateKey + 'T00:00:00');
-    const today = new Date();
-    
-    // Don't allow future dates
-    if (selectedDate > today) {
-      return;
-    }
-    
-    console.log('Loading problems for date:', dateKey);
-    
-    // Load problems for selected date
-    await this.loadDailyProblems(selectedDate);
-    
-    // Switch to problems tab
-    this.switchTab('problems');
-  }
-
   async getStorageData(key) {
     return new Promise((resolve) => {
       chrome.storage.local.get([key], (result) => {
@@ -1108,8 +922,6 @@ class CodeforcesDaily {
     });
   }
 }
-
-
 
 // Initialize the extension when the page loads
 if (document.readyState === 'loading') {
