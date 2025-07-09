@@ -296,7 +296,7 @@ class CodeforcesDaily {
     document.body.appendChild(modal);
   }
 
-  // ===== FIXED STREAK SYSTEM =====
+  // ===== CONSECUTIVE DAY STREAK SYSTEM =====
 
   async loadStreakData() {
     try {
@@ -307,17 +307,20 @@ class CodeforcesDaily {
         currentStreak: 0,
         maxStreak: 0,
         completedDays: {}, // Format: 'YYYY-MM-DD': { solved: true, timestamp: number, problems: ['problemId1', 'problemId2'] }
-        lastSubmissionDate: null
+        lastCompletedDate: null
       };
 
       console.log('Loaded streak data:', this.streakData);
+      
+      // Check if streak should be reset due to missed days
+      await this.checkAndResetStreakIfNeeded();
     } catch (error) {
       console.error('Error loading streak data:', error);
       this.streakData = {
         currentStreak: 0,
         maxStreak: 0,
         completedDays: {},
-        lastSubmissionDate: null
+        lastCompletedDate: null
       };
     }
   }
@@ -362,44 +365,33 @@ class CodeforcesDaily {
     };
   }
 
-  // Calculate streak from completed days
-  calculateStreak() {
+  // Check if streak should be reset due to missed days
+  async checkAndResetStreakIfNeeded() {
+    if (!this.streakData.lastCompletedDate || this.streakData.currentStreak === 0) {
+      return; // No streak to check or already at 0
+    }
+
     const today = this.getUTCDateString();
-    const completedDays = Object.keys(this.streakData.completedDays).sort();
+    const lastCompleted = this.streakData.lastCompletedDate;
     
-    if (completedDays.length === 0) {
-      return 0;
-    }
-
-    // Start from the most recent completed day
-    let streak = 0;
-    let currentDate = new Date();
+    // Calculate days between last completed and today
+    const lastDate = new Date(lastCompleted + 'T00:00:00Z');
+    const todayDate = new Date(today + 'T00:00:00Z');
+    const daysDiff = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
     
-    // Check if today is completed
-    if (this.streakData.completedDays[today]) {
-      streak = 1;
-      currentDate.setDate(currentDate.getDate() - 1);
-    } else {
-      // If today is not completed, start from yesterday
-      currentDate.setDate(currentDate.getDate() - 1);
-    }
+    console.log('Checking streak reset:', {
+      today,
+      lastCompleted,
+      daysDiff,
+      currentStreak: this.streakData.currentStreak
+    });
 
-    // Go backwards and count consecutive days
-    while (true) {
-      const dateString = this.getUTCDateString(currentDate);
-      
-      if (this.streakData.completedDays[dateString]) {
-        streak++;
-        currentDate.setDate(currentDate.getDate() - 1);
-      } else {
-        break;
-      }
-      
-      // Safety check
-      if (streak > 365) break;
+    // If more than 1 day gap, reset streak
+    if (daysDiff > 1) {
+      console.log('Resetting streak due to missed days');
+      this.streakData.currentStreak = 0;
+      await this.saveStreakData();
     }
-
-    return streak;
   }
 
   // Check if user solved today's problems
@@ -420,8 +412,8 @@ class CodeforcesDaily {
     console.log('Checking if user solved today\'s problems...');
     
     try {
-      // Get recent submissions (last 50)
-      const response = await fetch(`https://codeforces.com/api/user.status?handle=${this.currentUser}&from=1&count=50`);
+      // Get recent submissions (last 100 to be thorough)
+      const response = await fetch(`https://codeforces.com/api/user.status?handle=${this.currentUser}&from=1&count=100`);
       const data = await response.json();
       
       if (data.status !== 'OK') {
@@ -439,7 +431,11 @@ class CodeforcesDaily {
       todayEnd.setUTCHours(23, 59, 59, 999);
 
       console.log('Checking submissions between:', todayStart, 'and', todayEnd);
-      console.log('Looking for problems:', ratingBased ? `${ratingBased.contestId}${ratingBased.index}` : 'none', 'and', random ? `${random.contestId}${random.index}` : 'none');
+      console.log('Looking for problems:', 
+        ratingBased ? `${ratingBased.contestId}${ratingBased.index}` : 'none', 
+        'and', 
+        random ? `${random.contestId}${random.index}` : 'none'
+      );
 
       // Check if any submission today matches our daily problems
       const solvedProblems = [];
@@ -490,16 +486,36 @@ class CodeforcesDaily {
       problems: solvedProblems
     };
     
-    this.streakData.lastSubmissionDate = dateString;
+    // Update streak logic for consecutive days
+    const yesterday = this.getYesterdayUTCString();
+    const isConsecutive = this.streakData.lastCompletedDate === yesterday || this.streakData.currentStreak === 0;
     
-    // Recalculate streak
-    const newStreak = this.calculateStreak();
-    this.streakData.currentStreak = newStreak;
-    this.streakData.maxStreak = Math.max(this.streakData.maxStreak, newStreak);
+    if (isConsecutive) {
+      // Consecutive day - increment streak
+      this.streakData.currentStreak += 1;
+    } else {
+      // Not consecutive - start new streak
+      this.streakData.currentStreak = 1;
+    }
     
-    console.log('New streak:', newStreak, 'Max streak:', this.streakData.maxStreak);
+    this.streakData.lastCompletedDate = dateString;
+    this.streakData.maxStreak = Math.max(this.streakData.maxStreak, this.streakData.currentStreak);
+    
+    console.log('Updated streak:', {
+      currentStreak: this.streakData.currentStreak,
+      maxStreak: this.streakData.maxStreak,
+      lastCompletedDate: this.streakData.lastCompletedDate,
+      isConsecutive
+    });
     
     await this.saveStreakData();
+  }
+
+  // Get yesterday's UTC date string
+  getYesterdayUTCString() {
+    const yesterday = new Date();
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    return this.getUTCDateString(yesterday);
   }
 
   // Check if today is completed
@@ -508,7 +524,7 @@ class CodeforcesDaily {
     return !!(this.streakData.completedDays[today]);
   }
 
-  // ===== END FIXED STREAK SYSTEM =====
+  // ===== END CONSECUTIVE DAY STREAK SYSTEM =====
 
   formatDateKey(date) {
     return date.toISOString().split('T')[0];
@@ -542,14 +558,16 @@ class CodeforcesDaily {
     const timeLeft = this.getTimeUntilNextProblems();
     
     if (timeLeft.totalMs <= 0) {
-      // Time's up! Reload problems for new day
-      countdownElement.innerHTML = `
-        <div class="cf-countdown-expired">
-          <span class="cf-countdown-icon">🎉</span>
-          <span>New problems available!</span>
-          <button class="cf-refresh-btn" onclick="location.reload()">Refresh</button>
-        </div>
-      `;
+      // Time's up! Check if streak should be reset and reload problems
+      this.checkAndResetStreakIfNeeded().then(() => {
+        countdownElement.innerHTML = `
+          <div class="cf-countdown-expired">
+            <span class="cf-countdown-icon">🎉</span>
+            <span>New problems available!</span>
+            <button class="cf-refresh-btn" onclick="location.reload()">Refresh</button>
+          </div>
+        `;
+      });
       clearInterval(this.countdownInterval);
       return;
     }
