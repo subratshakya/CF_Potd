@@ -374,10 +374,8 @@ class CodeforcesDaily {
     const today = this.getUTCDateString();
     const lastCompleted = this.streakData.lastCompletedDate;
     
-    // Calculate days between last completed and today
-    const lastDate = new Date(lastCompleted + 'T00:00:00Z');
-    const todayDate = new Date(today + 'T00:00:00Z');
-    const daysDiff = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+     // Calculate days between last completed and today using UTC date strings
+     const daysDiff = this.calculateUTCDaysDifference(lastCompleted, today);
     
     console.log('Checking streak reset:', {
       today,
@@ -424,13 +422,15 @@ class CodeforcesDaily {
       const submissions = data.result;
       const { ratingBased, random } = this.dailyProblems;
       
-      // Get today's start and end in UTC
-      const todayStart = new Date();
-      todayStart.setUTCHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setUTCHours(23, 59, 59, 999);
+      // Get today's UTC date string for problem matching
+      const todayUTC = this.getUTCDateString();
+      
+      // Parse today's date boundaries in UTC
+      const todayStart = new Date(todayUTC + 'T00:00:00.000Z');
+      const todayEnd = new Date(todayUTC + 'T23:59:59.999Z');
 
       console.log('Checking submissions between:', todayStart, 'and', todayEnd);
+      console.log('Today UTC date:', todayUTC);
       console.log('Looking for problems:', 
         ratingBased ? `${ratingBased.contestId}${ratingBased.index}` : 'none', 
         'and', 
@@ -442,10 +442,18 @@ class CodeforcesDaily {
       
       for (const submission of submissions) {
         const submissionTime = new Date(submission.creationTimeSeconds * 1000);
+        const submissionUTCDate = this.getUTCDateString(submissionTime);
         
         // Check if submission is from today (UTC) and is accepted
-        if (submissionTime >= todayStart && submissionTime <= todayEnd && submission.verdict === 'OK') {
+        if (submissionUTCDate === todayUTC && submission.verdict === 'OK') {
           const problemId = `${submission.problem.contestId}${submission.problem.index}`;
+          
+          console.log('Found accepted submission:', {
+            problemId,
+            submissionTime: submissionTime.toISOString(),
+            submissionUTCDate,
+            todayUTC
+          });
           
           // Check if this matches any of our daily problems
           if (ratingBased && `${ratingBased.contestId}${ratingBased.index}` === problemId) {
@@ -486,9 +494,19 @@ class CodeforcesDaily {
       problems: solvedProblems
     };
     
-    // Update streak logic for consecutive days
-    const yesterday = this.getYesterdayUTCString();
-    const isConsecutive = this.streakData.lastCompletedDate === yesterday || this.streakData.currentStreak === 0;
+     // Update streak logic for consecutive days using proper UTC date calculation
+     const yesterday = this.getYesterdayUTCString();
+     const isFirstDay = this.streakData.currentStreak === 0;
+     const isConsecutive = isFirstDay || this.streakData.lastCompletedDate === yesterday;
+     
+     console.log('Streak calculation:', {
+       dateString,
+       yesterday,
+       lastCompletedDate: this.streakData.lastCompletedDate,
+       isFirstDay,
+       isConsecutive,
+       currentStreak: this.streakData.currentStreak
+     });
     
     if (isConsecutive) {
       // Consecutive day - increment streak
@@ -514,7 +532,8 @@ class CodeforcesDaily {
   // Get yesterday's UTC date string
   getYesterdayUTCString() {
     const yesterday = new Date();
-    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+     const utcYesterday = new Date(yesterday.getTime() + (yesterday.getTimezoneOffset() * 60000));
+     utcYesterday.setUTCDate(utcYesterday.getUTCDate() - 1);
     return this.getUTCDateString(yesterday);
   }
 
@@ -523,6 +542,14 @@ class CodeforcesDaily {
     const today = this.getUTCDateString();
     return !!(this.streakData.completedDays[today]);
   }
+
+   // Calculate difference in days between two UTC date strings
+   calculateUTCDaysDifference(dateString1, dateString2) {
+     const date1 = new Date(dateString1 + 'T00:00:00.000Z');
+     const date2 = new Date(dateString2 + 'T00:00:00.000Z');
+     const diffTime = Math.abs(date2 - date1);
+     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+   }
 
   // ===== END CONSECUTIVE DAY STREAK SYSTEM =====
 
