@@ -364,33 +364,43 @@ class CodeforcesDaily {
 
   // Check if streak should be reset due to missed days
   async checkAndResetStreakIfNeeded() {
-    if (!this.streakData.lastCompletedDate || this.streakData.currentStreak === 0) {
-      console.log('No streak to check or already at 0');
-      return; // No streak to check or already at 0
+    if (this.streakData.currentStreak === 0) {
+      console.log('Streak already at 0, no need to check reset');
+      return;
     }
 
-    const today = this.getUTCDateString();
-    const lastCompleted = this.streakData.lastCompletedDate;
+    // Only reset if we have a last completed date and it's been more than 24 hours
+    if (!this.streakData.lastCompletedDate) {
+      console.log('No last completed date found');
+      return;
+    }
+
+    // Get the last submission timestamp from completed days
+    const lastCompletedDay = this.streakData.completedDays[this.streakData.lastCompletedDate];
+    if (!lastCompletedDay || !lastCompletedDay.timestamp) {
+      console.log('No timestamp found for last completed day');
+      return;
+    }
+
+    const now = Date.now();
+    const lastSubmissionTime = lastCompletedDay.timestamp;
+    const hoursSinceLastSubmission = (now - lastSubmissionTime) / (1000 * 60 * 60);
     
-    // Calculate days between last completed and today using UTC date strings
-    const daysDiff = this.calculateUTCDaysDifference(lastCompleted, today);
-    
-    console.log('Checking streak reset:', {
-      today,
-      lastCompleted,
-      daysDiff,
-      currentStreak: this.streakData.currentStreak,
-      todayCompleted: this.isTodayCompleted()
+    console.log('Checking streak reset based on 24-hour rule:', {
+      lastSubmissionTime: new Date(lastSubmissionTime).toISOString(),
+      now: new Date(now).toISOString(),
+      hoursSinceLastSubmission: hoursSinceLastSubmission.toFixed(2),
+      currentStreak: this.streakData.currentStreak
     });
 
-    // If more than 1 day gap AND today is not completed, reset streak
-    // This prevents resetting streak if user solved today but we're checking before marking completion
-    if (daysDiff > 1 && !this.isTodayCompleted()) {
-      console.log('Resetting streak due to missed days');
+    // Reset streak only if more than 24 hours have passed since last submission
+    if (hoursSinceLastSubmission > 24) {
+      console.log(`Resetting streak - ${hoursSinceLastSubmission.toFixed(2)} hours since last submission`);
       this.streakData.currentStreak = 0;
+      this.streakData.lastCompletedDate = null;
       await this.saveStreakData();
     } else {
-      console.log('Streak preserved - either consecutive days or today is completed');
+      console.log(`Streak preserved - only ${hoursSinceLastSubmission.toFixed(2)} hours since last submission`);
     }
   }
 
@@ -489,32 +499,48 @@ class CodeforcesDaily {
   async markDayCompleted(dateString, solvedProblems = []) {
     console.log('Marking day completed:', dateString, 'with problems:', solvedProblems);
     
+    const now = Date.now();
+    
     // Mark the day as completed
     this.streakData.completedDays[dateString] = {
       solved: true,
-      timestamp: Date.now(),
+      timestamp: now,
       problems: solvedProblems
     };
     
-     // Update streak logic for consecutive days using proper UTC date calculation
-     const yesterday = this.getYesterdayUTCString();
-     const isFirstDay = this.streakData.currentStreak === 0;
-     const isConsecutive = isFirstDay || this.streakData.lastCompletedDate === yesterday;
-     
-     console.log('Streak calculation:', {
-       dateString,
-       yesterday,
-       lastCompletedDate: this.streakData.lastCompletedDate,
-       isFirstDay,
-       isConsecutive,
-       currentStreak: this.streakData.currentStreak
-     });
+    // Update streak logic based on timing
+    const isFirstDay = this.streakData.currentStreak === 0;
+    let isConsecutive = isFirstDay;
+    
+    if (!isFirstDay && this.streakData.lastCompletedDate) {
+      const lastCompletedDay = this.streakData.completedDays[this.streakData.lastCompletedDate];
+      if (lastCompletedDay && lastCompletedDay.timestamp) {
+        const hoursSinceLastSubmission = (now - lastCompletedDay.timestamp) / (1000 * 60 * 60);
+        // Consider consecutive if within 48 hours (allows for different daily problem schedules)
+        isConsecutive = hoursSinceLastSubmission <= 48;
+        
+        console.log('Consecutive check:', {
+          lastSubmission: new Date(lastCompletedDay.timestamp).toISOString(),
+          currentSubmission: new Date(now).toISOString(),
+          hoursBetween: hoursSinceLastSubmission.toFixed(2),
+          isConsecutive
+        });
+      }
+    }
+    
+    console.log('Streak calculation:', {
+      dateString,
+      lastCompletedDate: this.streakData.lastCompletedDate,
+      isFirstDay,
+      isConsecutive,
+      currentStreak: this.streakData.currentStreak
+    });
     
     if (isConsecutive) {
-      // Consecutive day - increment streak
+      // Consecutive submission - increment streak
       this.streakData.currentStreak += 1;
     } else {
-      // Not consecutive - start new streak
+      // Not consecutive - reset and start new streak
       this.streakData.currentStreak = 1;
     }
     
@@ -570,32 +596,52 @@ class CodeforcesDaily {
     return this.getTimeUntilNextUTCDay();
   }
 
-  startCountdown() {
+  getStreakResetCountdown() {
+    if (this.streakData.currentStreak === 0 || !this.streakData.lastCompletedDate) {
+      return "No active streak";
+    }
+
+    const lastCompletedDay = this.streakData.completedDays[this.streakData.lastCompletedDate];
+    if (!lastCompletedDay || !lastCompletedDay.timestamp) {
+      return "No active streak";
+    }
+
+    const now = Date.now();
+    const lastSubmissionTime = lastCompletedDay.timestamp;
+    const resetTime = lastSubmissionTime + (24 * 60 * 60 * 1000); // 24 hours after last submission
+    const timeLeft = resetTime - now;
+
+    if (timeLeft <= 0) {
+      return "Streak expired";
+    }
+
+    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  startStreakCountdown() {
     if (this.countdownInterval) {
       clearInterval(this.countdownInterval);
     }
 
     this.countdownInterval = setInterval(() => {
-      this.updateCountdownDisplay();
+      this.updateStreakCountdownDisplay();
     }, 1000);
   }
 
-  updateCountdownDisplay() {
+  updateStreakCountdownDisplay() {
     const countdownElement = document.querySelector('.cf-countdown-timer');
     if (!countdownElement) return;
 
-    const timeLeft = this.getTimeUntilNextProblems();
+    const countdownText = this.getStreakResetCountdown();
     
-    if (timeLeft.totalMs <= 0) {
-      // Time's up! Check if streak should be reset and reload problems
+    if (countdownText === "Streak expired") {
+      // Streak expired, check and reset
       this.checkAndResetStreakIfNeeded().then(() => {
-        countdownElement.innerHTML = `
-          <div class="cf-countdown-expired">
-            <span class="cf-countdown-icon">🎉</span>
-            <span>New problems available!</span>
-            <button class="cf-refresh-btn" onclick="location.reload()">Refresh</button>
-          </div>
-        `;
+        this.displayProblems(); // Refresh the display
       });
       clearInterval(this.countdownInterval);
       return;
@@ -603,9 +649,9 @@ class CodeforcesDaily {
 
     countdownElement.innerHTML = `
       <div class="cf-countdown-display">
-        <span class="cf-countdown-icon">⏰</span>
-        <span class="cf-countdown-label">Next problems in:</span>
-        <span class="cf-countdown-time">${timeLeft.hours}:${timeLeft.minutes}:${timeLeft.seconds}</span>
+        <span class="cf-countdown-icon">🔥</span>
+        <span class="cf-countdown-label">Streak resets in:</span>
+        <span class="cf-countdown-time">${countdownText}</span>
       </div>
     `;
   }
@@ -906,7 +952,7 @@ class CodeforcesDaily {
 
     // Start countdown if viewing today's problems
     if (isToday) {
-      this.startCountdown();
+      this.startStreakCountdown();
     }
   }
 
