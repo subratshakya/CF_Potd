@@ -311,9 +311,6 @@ class CodeforcesDaily {
       };
 
       console.log('Loaded streak data:', this.streakData);
-      
-      // Check if streak should be reset due to missed days
-      await this.checkAndResetStreakIfNeeded();
     } catch (error) {
       console.error('Error loading streak data:', error);
       this.streakData = {
@@ -368,27 +365,32 @@ class CodeforcesDaily {
   // Check if streak should be reset due to missed days
   async checkAndResetStreakIfNeeded() {
     if (!this.streakData.lastCompletedDate || this.streakData.currentStreak === 0) {
+      console.log('No streak to check or already at 0');
       return; // No streak to check or already at 0
     }
 
     const today = this.getUTCDateString();
     const lastCompleted = this.streakData.lastCompletedDate;
     
-     // Calculate days between last completed and today using UTC date strings
-     const daysDiff = this.calculateUTCDaysDifference(lastCompleted, today);
+    // Calculate days between last completed and today using UTC date strings
+    const daysDiff = this.calculateUTCDaysDifference(lastCompleted, today);
     
     console.log('Checking streak reset:', {
       today,
       lastCompleted,
       daysDiff,
-      currentStreak: this.streakData.currentStreak
+      currentStreak: this.streakData.currentStreak,
+      todayCompleted: this.isTodayCompleted()
     });
 
-    // If more than 1 day gap, reset streak
-    if (daysDiff > 1) {
+    // If more than 1 day gap AND today is not completed, reset streak
+    // This prevents resetting streak if user solved today but we're checking before marking completion
+    if (daysDiff > 1 && !this.isTodayCompleted()) {
       console.log('Resetting streak due to missed days');
       this.streakData.currentStreak = 0;
       await this.saveStreakData();
+    } else {
+      console.log('Streak preserved - either consecutive days or today is completed');
     }
   }
 
@@ -634,9 +636,10 @@ class CodeforcesDaily {
         };
         console.log('Loaded problems from cache');
         
-        // Check if user solved today's problems after loading
+        // Check if user solved today's problems after loading, then check streak reset
         if (this.formatDateKey(date) === this.getUTCDateString()) {
           await this.checkTodaysSolutions();
+          await this.checkAndResetStreakIfNeeded();
         }
         return;
       }
@@ -710,9 +713,10 @@ class CodeforcesDaily {
 
       console.log('Fetched and cached new problems');
 
-      // Check if user solved today's problems after fetching
+      // Check if user solved today's problems after fetching, then check streak reset
       if (this.formatDateKey(date) === this.getUTCDateString()) {
         await this.checkTodaysSolutions();
+        await this.checkAndResetStreakIfNeeded();
       }
 
     } catch (error) {
