@@ -581,6 +581,24 @@ class CodeforcesDaily {
     `;
   }
 
+  startDisplayTimer() {
+    if (this.displayTimerInterval) {
+      clearInterval(this.displayTimerInterval);
+    }
+
+    this.displayTimerInterval = setInterval(() => {
+      this.updateDisplayTimer();
+    }, 1000);
+  }
+
+  updateDisplayTimer() {
+    const displayTimerElement = document.getElementById('cf-display-timer');
+    if (!displayTimerElement) return;
+
+    const timeLeft = this.getTimeUntilNextUTCDay();
+    displayTimerElement.textContent = `${timeLeft.hours}:${timeLeft.minutes}:${timeLeft.seconds}`;
+  }
+
   async loadDailyProblems(date = new Date()) {
     try {
       const universalDateKey = this.getUniversalDateKey(date);
@@ -765,6 +783,12 @@ class CodeforcesDaily {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
     }
+
+    // Clear display timer interval when modal is closed
+    if (this.displayTimerInterval) {
+      clearInterval(this.displayTimerInterval);
+      this.displayTimerInterval = null;
+    }
   }
 
   async displayProblems() {
@@ -807,6 +831,16 @@ class CodeforcesDaily {
     
     modalBody.innerHTML = `
       <div class="cf-problems-container">
+        <div class="cf-display-timer-section">
+          <div class="cf-display-timer">
+            <div class="cf-timer-icon">⏰</div>
+            <div class="cf-timer-content">
+              <div class="cf-timer-label">Time Remaining</div>
+              <div class="cf-timer-display" id="cf-display-timer">00:00:00</div>
+            </div>
+          </div>
+        </div>
+        
         ${isToday ? `
           <div class="cf-countdown-section">
             <div class="cf-countdown-timer">
@@ -876,6 +910,7 @@ class CodeforcesDaily {
     // Start countdown if viewing today's problems
     if (isToday) {
       this.startCountdown();
+      this.startDisplayTimer();
     }
   }
 
