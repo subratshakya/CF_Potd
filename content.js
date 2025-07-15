@@ -837,6 +837,14 @@ class CodeforcesDaily {
                 <div class="cf-streak-best">${todayCompleted ? 'Completed' : 'Pending'}</div>
               </div>
             </div>
+            <div class="cf-streak-item">
+              <div class="cf-streak-icon">🚀</div>
+              <div class="cf-streak-info">
+                <div class="cf-streak-number">${Object.keys(this.streakData.completedDays).length}</div>
+                <div class="cf-streak-label">Total Days</div>
+                <div class="cf-streak-best">All Time</div>
+              </div>
+            </div>
           </div>
         ` : ''}
         

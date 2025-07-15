@@ -213,11 +213,12 @@
 /* Streak Section */
 .cf-streak-section {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 20px;
   padding: 12px;
   background: #f9f9f9;
   border: 1px solid #ddd;
+  flex-wrap: wrap;
 }
 
 .cf-streak-item {
@@ -225,6 +226,7 @@
   align-items: center;
   gap: 10px;
   flex: 1;
+  min-width: 120px;
 }
 
 .cf-streak-icon {
@@ -606,8 +608,12 @@
   }
   
   .cf-streak-section {
-    flex-direction: column;
-    gap: 12px;
+    justify-content: center;
+  }
+  
+  .cf-streak-item {
+    min-width: 100px;
+    flex: 0 1 auto;
   }
   
   .cf-countdown-display {
