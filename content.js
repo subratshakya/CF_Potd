@@ -8,6 +8,8 @@ class CodeforcesDaily {
     this.currentUserRating = null;
     this.countdownInterval = null;
     this.userVerified = false;
+    this.isCalendarView = false;
+    this.selectedDate = null;
     this.init();
   }
 
@@ -794,6 +796,12 @@ class CodeforcesDaily {
   async displayProblems() {
     const modalBody = document.getElementById('cf-modal-body');
     
+    // Check if we're in calendar view
+    if (this.isCalendarView) {
+      this.displayCalendar();
+      return;
+    }
+    
     if (!this.dailyProblems) {
       modalBody.innerHTML = `
         <div class="cf-loading">
@@ -854,11 +862,11 @@ class CodeforcesDaily {
               </div>
             </div>
             <div class="cf-streak-item">
-              <div class="cf-streak-icon">📅</div>
+              <div class="cf-streak-icon" style="cursor: pointer;" onclick="window.cfDaily.toggleCalendarView()">📅</div>
               <div class="cf-streak-info">
-                <div class="cf-streak-number">${todayCompleted.any ? '✓' : '○'}</div>
-                <div class="cf-streak-label">Today's Status</div>
-                <div class="cf-streak-best">${todayCompleted.any ? 'Completed' : 'Pending'}</div>
+                <div class="cf-streak-number" style="cursor: pointer;" onclick="window.cfDaily.toggleCalendarView()">${todayCompleted.any ? '✓' : '○'}</div>
+                <div class="cf-streak-label" style="cursor: pointer;" onclick="window.cfDaily.toggleCalendarView()">Calendar</div>
+                <div class="cf-streak-best" style="cursor: pointer;" onclick="window.cfDaily.toggleCalendarView()">${todayCompleted.any ? 'View History' : 'View History'}</div>
               </div>
             </div>
             <div class="cf-streak-item">
