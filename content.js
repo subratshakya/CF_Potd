@@ -821,6 +821,7 @@ class CodeforcesDaily {
     // If viewing today's problems, check for solutions
     if (isToday) {
       await this.checkTodaysSolutions();
+    }
 
     const { userRating, isLoggedIn, ratingBased, random } = this.dailyProblems;
     const ratingClass = this.getRatingClass(userRating);
