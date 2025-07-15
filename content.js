@@ -304,20 +304,26 @@ class CodeforcesDaily {
       const streakData = await this.getStorageData(streakKey);
       
       this.streakData = streakData || {
-        currentStreak: 0,
-        maxStreak: 0,
+        personalizedStreak: 0,
+        randomStreak: 0,
+        maxPersonalizedStreak: 0,
+        maxRandomStreak: 0,
         completedDays: {}, // Format: 'YYYY-MM-DD': { solved: true, timestamp: number, problems: ['problemId1', 'problemId2'] }
-        lastCompletedDate: null
+        lastPersonalizedDate: null,
+        lastRandomDate: null
       };
 
       console.log('Loaded streak data:', this.streakData);
     } catch (error) {
       console.error('Error loading streak data:', error);
       this.streakData = {
-        currentStreak: 0,
-        maxStreak: 0,
+        personalizedStreak: 0,
+        randomStreak: 0,
+        maxPersonalizedStreak: 0,
+        maxRandomStreak: 0,
         completedDays: {},
-        lastCompletedDate: null
+        lastPersonalizedDate: null,
+        lastRandomDate: null
       };
     }
   }
@@ -410,6 +416,8 @@ class CodeforcesDaily {
 
       // Check if any submission today matches our daily problems
       const solvedProblems = [];
+      let solvedPersonalized = false;
+      let solvedRandom = false;
       
       for (const submission of submissions) {
         const submissionTime = new Date(submission.creationTimeSeconds * 1000);
@@ -429,11 +437,13 @@ class CodeforcesDaily {
           // Check if this matches any of our daily problems
           if (ratingBased && `${ratingBased.contestId}${ratingBased.index}` === problemId) {
             solvedProblems.push(problemId);
+            solvedPersonalized = true;
             console.log('Found solved rating-based problem:', problemId);
           }
           
           if (random && `${random.contestId}${random.index}` === problemId) {
             solvedProblems.push(problemId);
+            solvedRandom = true;
             console.log('Found solved random problem:', problemId);
           }
         }
@@ -442,7 +452,7 @@ class CodeforcesDaily {
       // If user solved at least one daily problem today, mark day as completed
       if (solvedProblems.length > 0) {
         console.log('User solved daily problems today:', solvedProblems);
-        await this.markDayCompleted(today, solvedProblems);
+        await this.markDayCompleted(today, solvedProblems, solvedPersonalized, solvedRandom);
         return true;
       }
 
@@ -455,7 +465,7 @@ class CodeforcesDaily {
   }
 
   // Mark a day as completed and update streak
-  async markDayCompleted(dateString, solvedProblems = []) {
+  async markDayCompleted(dateString, solvedProblems = [], solvedPersonalized = false, solvedRandom = false) {
     console.log('Marking day completed:', dateString, 'with problems:', solvedProblems);
     
     const now = Date.now();
@@ -464,54 +474,63 @@ class CodeforcesDaily {
     this.streakData.completedDays[dateString] = {
       solved: true,
       timestamp: now,
-      problems: solvedProblems
+      problems: solvedProblems,
+      solvedPersonalized,
+      solvedRandom
     };
     
-    // Update streak logic - check if this is consecutive to last completed day
-    let isConsecutive = false;
+    // Update personalized streak
+    if (solvedPersonalized) {
+      let isPersonalizedConsecutive = false;
+      
+      if (this.streakData.personalizedStreak === 0) {
+        isPersonalizedConsecutive = true;
+      } else if (this.streakData.lastPersonalizedDate) {
+        const lastDate = new Date(this.streakData.lastPersonalizedDate + 'T00:00:00.000Z');
+        const currentDate = new Date(dateString + 'T00:00:00.000Z');
+        const daysDifference = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
+        isPersonalizedConsecutive = daysDifference === 1;
+      }
+      
+      if (isPersonalizedConsecutive) {
+        this.streakData.personalizedStreak += 1;
+      } else {
+        this.streakData.personalizedStreak = 1;
+      }
+      
+      this.streakData.lastPersonalizedDate = dateString;
+      this.streakData.maxPersonalizedStreak = Math.max(this.streakData.maxPersonalizedStreak, this.streakData.personalizedStreak);
+    }
     
-    if (this.streakData.currentStreak === 0) {
-      // First day or starting new streak
-      isConsecutive = true;
-    } else if (this.streakData.lastCompletedDate) {
-      // Check if this is the next consecutive day
-      const lastDate = new Date(this.streakData.lastCompletedDate + 'T00:00:00.000Z');
-      const currentDate = new Date(dateString + 'T00:00:00.000Z');
-      const daysDifference = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
+    // Update random streak
+    if (solvedRandom) {
+      let isRandomConsecutive = false;
       
-      isConsecutive = daysDifference === 1;
+      if (this.streakData.randomStreak === 0) {
+        isRandomConsecutive = true;
+      } else if (this.streakData.lastRandomDate) {
+        const lastDate = new Date(this.streakData.lastRandomDate + 'T00:00:00.000Z');
+        const currentDate = new Date(dateString + 'T00:00:00.000Z');
+        const daysDifference = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
+        isRandomConsecutive = daysDifference === 1;
+      }
       
-      console.log('Consecutive check:', {
-        lastCompletedDate: this.streakData.lastCompletedDate,
-        currentDate: dateString,
-        daysDifference,
-        isConsecutive
-      });
+      if (isRandomConsecutive) {
+        this.streakData.randomStreak += 1;
+      } else {
+        this.streakData.randomStreak = 1;
+      }
+      
+      this.streakData.lastRandomDate = dateString;
+      this.streakData.maxRandomStreak = Math.max(this.streakData.maxRandomStreak, this.streakData.randomStreak);
     }
     
     console.log('Streak calculation:', {
       dateString,
-      lastCompletedDate: this.streakData.lastCompletedDate,
-      isConsecutive,
-      currentStreak: this.streakData.currentStreak
-    });
-    
-    if (isConsecutive) {
-      // Consecutive day - increment streak
-      this.streakData.currentStreak += 1;
-    } else {
-      // Gap in days - reset and start new streak
-      this.streakData.currentStreak = 1;
-    }
-    
-    this.streakData.lastCompletedDate = dateString;
-    this.streakData.maxStreak = Math.max(this.streakData.maxStreak, this.streakData.currentStreak);
-    
-    console.log('Updated streak:', {
-      currentStreak: this.streakData.currentStreak,
-      maxStreak: this.streakData.maxStreak,
-      lastCompletedDate: this.streakData.lastCompletedDate,
-      isConsecutive
+      solvedPersonalized,
+      solvedRandom,
+      personalizedStreak: this.streakData.personalizedStreak,
+      randomStreak: this.streakData.randomStreak
     });
     
     await this.saveStreakData();
@@ -528,7 +547,12 @@ class CodeforcesDaily {
   // Check if today is completed
   isTodayCompleted() {
     const today = this.getUTCDateString();
-    return !!(this.streakData.completedDays[today]);
+    const todayData = this.streakData.completedDays[today];
+    return {
+      any: !!todayData,
+      personalized: !!(todayData && todayData.solvedPersonalized),
+      random: !!(todayData && todayData.solvedRandom)
+    };
   }
 
    // Calculate difference in days between two UTC date strings
@@ -797,7 +821,6 @@ class CodeforcesDaily {
     // If viewing today's problems, check for solutions
     if (isToday) {
       await this.checkTodaysSolutions();
-    }
 
     const { userRating, isLoggedIn, ratingBased, random } = this.dailyProblems;
     const ratingClass = this.getRatingClass(userRating);
@@ -824,25 +847,25 @@ class CodeforcesDaily {
             <div class="cf-streak-item">
               <div class="cf-streak-icon">🔥</div>
               <div class="cf-streak-info">
-                <div class="cf-streak-number">${this.streakData.currentStreak}</div>
-                <div class="cf-streak-label">Current Streak</div>
-                <div class="cf-streak-best">Best: ${this.streakData.maxStreak}</div>
+                <div class="cf-streak-number">${this.streakData.personalizedStreak}</div>
+                <div class="cf-streak-label">Personalized</div>
+                <div class="cf-streak-best">Best: ${this.streakData.maxPersonalizedStreak}</div>
               </div>
             </div>
             <div class="cf-streak-item">
               <div class="cf-streak-icon">📅</div>
               <div class="cf-streak-info">
-                <div class="cf-streak-number">${todayCompleted ? '✓' : '○'}</div>
+                <div class="cf-streak-number">${todayCompleted.any ? '✓' : '○'}</div>
                 <div class="cf-streak-label">Today's Status</div>
-                <div class="cf-streak-best">${todayCompleted ? 'Completed' : 'Pending'}</div>
+                <div class="cf-streak-best">${todayCompleted.any ? 'Completed' : 'Pending'}</div>
               </div>
             </div>
             <div class="cf-streak-item">
               <div class="cf-streak-icon">🚀</div>
               <div class="cf-streak-info">
-                <div class="cf-streak-number">${Object.keys(this.streakData.completedDays).length}</div>
-                <div class="cf-streak-label">Total Days</div>
-                <div class="cf-streak-best">All Time</div>
+                <div class="cf-streak-number">${this.streakData.randomStreak}</div>
+                <div class="cf-streak-label">Random</div>
+                <div class="cf-streak-best">Best: ${this.streakData.maxRandomStreak}</div>
               </div>
             </div>
           </div>
@@ -862,13 +885,13 @@ class CodeforcesDaily {
         <div class="cf-problem-section">
           <h4>${isLoggedIn ? 'Rating-Based Problem' : 'Beginner Problem'}</h4>
           <p class="cf-section-desc">${isLoggedIn ? 'Problem tailored to your skill level' : 'Problem for rating 1100-1500'}</p>
-          ${this.renderProblemCard(ratingBased, 'rating', todayCompleted)}
+          ${this.renderProblemCard(ratingBased, 'rating', todayCompleted.personalized)}
         </div>
         
         <div class="cf-problem-section">
           <h4>Daily Random Problem</h4>
           <p class="cf-section-desc">Universal challenge for all users (same globally)</p>
-          ${this.renderProblemCard(random, 'random', todayCompleted)}
+          ${this.renderProblemCard(random, 'random', todayCompleted.random)}
         </div>
         
         ${isLoggedIn ? `
