@@ -13,8 +13,16 @@
   "content_scripts": [
     {
       "matches": ["https://codeforces.com/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "js": [
+        "js/storage.js",
+        "js/user-detection.js", 
+        "js/streak-manager.js",
+        "js/problem-fetcher.js",
+        "js/calendar.js",
+        "js/ui-renderer.js",
+        "js/main.js"
+      ],
+      "css": ["styles.css", "css/calendar.css"],
       "run_at": "document_end"
     }
   ],

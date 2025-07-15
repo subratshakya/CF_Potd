@@ -625,6 +625,22 @@
   .cf-countdown-time {
     font-size: 18px;
   }
+  
+  .cf-calendar-day {
+    min-height: 40px;
+    font-size: 12px;
+  }
+  
+  .cf-calendar-legend {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .cf-calendar-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
 }
 
 @media (max-width: 480px) {
