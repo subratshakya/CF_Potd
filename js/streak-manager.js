@@ -75,6 +75,12 @@ class StreakManager {
   async markDayCompleted(dateString, solvedProblems = [], solvedPersonalized = false, solvedRandom = false, currentUser) {
     console.log('Marking day completed:', dateString, 'with problems:', solvedProblems);
     
+    // Check if already marked for today to avoid duplicate processing
+    if (this.streakData.completedDays[dateString]) {
+      console.log('Day already marked as completed:', dateString);
+      return;
+    }
+    
     const now = Date.now();
     
     this.streakData.completedDays[dateString] = {
