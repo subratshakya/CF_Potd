@@ -15,19 +15,25 @@
     {
       "matches": ["https://codeforces.com/*"],
       "js": [
-        "js/storage.js",
-        "js/user-detection.js", 
-        "js/streak-manager.js",
-        "js/problem-fetcher.js",
-        "js/calendar.js",
-        "js/ui-renderer.js",
-        "js/main.js"
+        "src/config/constants.js",
+        "src/utils/logger.js",
+        "src/utils/date-utils.js",
+        "src/utils/hash-utils.js",
+        "src/services/storage-service.js",
+        "src/services/api-service.js",
+        "src/services/user-detection-service.js",
+        "src/services/problem-service.js",
+        "src/models/streak-model.js",
+        "src/components/ui-components.js",
+        "src/components/calendar-component.js",
+        "src/controllers/main-controller.js"
       ],
-      "css": ["styles.css", "css/calendar.css"],
+      "css": ["styles.css", "src/styles/calendar.css"],
       "run_at": "document_end"
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background/background-service.js",
+    "type": "module"
   }
 }
