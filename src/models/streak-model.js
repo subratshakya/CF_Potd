@@ -128,31 +128,18 @@ export class StreakModel {
    * @param {string} dateString - Current date string
    */
   updatePersonalizedStreak(dateString) {
-    let isConsecutive = false;
-    
-    if (this.streakData.personalizedStreak === 0) {
-      isConsecutive = true;
-    } else if (this.streakData.lastPersonalizedDate) {
-      const lastDate = new Date(this.streakData.lastPersonalizedDate + 'T00:00:00.000Z');
-      const currentDate = new Date(dateString + 'T00:00:00.000Z');
-      const daysDifference = DateUtils.getDaysDifference(lastDate, currentDate);
-      isConsecutive = daysDifference === 1;
-    }
-    
-    if (isConsecutive) {
-      this.streakData.personalizedStreak += 1;
-    } else {
-      this.streakData.personalizedStreak = 1;
-    }
+    // Calculate streak based on consecutive days from completion history
+    const streak = this.calculateCurrentStreak('personalized', dateString);
+    this.streakData.personalizedStreak = streak;
     
     this.streakData.lastPersonalizedDate = dateString;
     this.streakData.maxPersonalizedStreak = Math.max(
       this.streakData.maxPersonalizedStreak, 
-      this.streakData.personalizedStreak
+      streak
     );
 
     logger.debug('StreakModel.updatePersonalizedStreak', 'Updated personalized streak', {
-      current: this.streakData.personalizedStreak,
+      current: streak,
       max: this.streakData.maxPersonalizedStreak
     });
   }
@@ -162,31 +149,18 @@ export class StreakModel {
    * @param {string} dateString - Current date string
    */
   updateRandomStreak(dateString) {
-    let isConsecutive = false;
-    
-    if (this.streakData.randomStreak === 0) {
-      isConsecutive = true;
-    } else if (this.streakData.lastRandomDate) {
-      const lastDate = new Date(this.streakData.lastRandomDate + 'T00:00:00.000Z');
-      const currentDate = new Date(dateString + 'T00:00:00.000Z');
-      const daysDifference = DateUtils.getDaysDifference(lastDate, currentDate);
-      isConsecutive = daysDifference === 1;
-    }
-    
-    if (isConsecutive) {
-      this.streakData.randomStreak += 1;
-    } else {
-      this.streakData.randomStreak = 1;
-    }
+    // Calculate streak based on consecutive days from completion history
+    const streak = this.calculateCurrentStreak('random', dateString);
+    this.streakData.randomStreak = streak;
     
     this.streakData.lastRandomDate = dateString;
     this.streakData.maxRandomStreak = Math.max(
       this.streakData.maxRandomStreak, 
-      this.streakData.randomStreak
+      streak
     );
 
     logger.debug('StreakModel.updateRandomStreak', 'Updated random streak', {
-      current: this.streakData.randomStreak,
+      current: streak,
       max: this.streakData.maxRandomStreak
     });
   }
@@ -203,6 +177,54 @@ export class StreakModel {
       any: !!todayData,
       personalized: !!(todayData && todayData.solvedPersonalized),
       random: !!(todayData && todayData.solvedRandom)
+    };
+  }
+
+  /**
+   * Check if streak should be reset (missed yesterday)
+   * @param {string} type - 'personalized' or 'random'
+   * @returns {boolean} Whether streak should be reset
+   */
+  shouldResetStreak(type) {
+    const today = DateUtils.getUTCDateString();
+    const yesterday = DateUtils.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    
+    const todayData = this.streakData.completedDays[today];
+    const yesterdayData = this.streakData.completedDays[yesterday];
+    
+    const solvedToday = todayData && (type === 'personalized' ? todayData.solvedPersonalized : todayData.solvedRandom);
+    const solvedYesterday = yesterdayData && (type === 'personalized' ? yesterdayData.solvedPersonalized : yesterdayData.solvedRandom);
+    
+    // If didn't solve today and didn't solve yesterday, reset streak
+    return !solvedToday && !solvedYesterday;
+  }
+
+  /**
+   * Get current streak status for display
+   * @returns {Object} Streak status object
+   */
+  getStreakStatus() {
+    const today = DateUtils.getUTCDateString();
+    
+    // Recalculate streaks based on actual completion history
+    const personalizedStreak = this.calculateCurrentStreak('personalized', today);
+    const randomStreak = this.calculateCurrentStreak('random', today);
+    
+    // Update stored values if they're incorrect
+    if (personalizedStreak !== this.streakData.personalizedStreak) {
+      this.streakData.personalizedStreak = personalizedStreak;
+    }
+    if (randomStreak !== this.streakData.randomStreak) {
+      this.streakData.randomStreak = randomStreak;
+    }
+    
+    return {
+      personalizedStreak,
+      randomStreak,
+      maxPersonalizedStreak: this.streakData.maxPersonalizedStreak,
+      maxRandomStreak: this.streakData.maxRandomStreak,
+      shouldResetPersonalized: this.shouldResetStreak('personalized'),
+      shouldResetRandom: this.shouldResetStreak('random')
     };
   }
 
@@ -224,7 +246,47 @@ export class StreakModel {
   }
 
   /**
-   * Validate and fix streak consistency
+   * Calculate current streak for a specific type (LeetCode style)
+   * @param {string} type - 'personalized' or 'random'
+   * @param {string} currentDate - Current date string
+   * @returns {number} Current streak count
+   */
+  calculateCurrentStreak(type, currentDate) {
+    try {
+      const completedDays = Object.keys(this.streakData.completedDays).sort();
+      const relevantDays = completedDays.filter(date => {
+        const dayData = this.streakData.completedDays[date];
+        return type === 'personalized' ? dayData.solvedPersonalized : dayData.solvedRandom;
+      });
+
+      if (relevantDays.length === 0) return 0;
+
+      // Start from current date and count backwards
+      let streak = 0;
+      let checkDate = new Date(currentDate + 'T00:00:00.000Z');
+
+      // Count consecutive days backwards from current date
+      while (true) {
+        const checkDateStr = DateUtils.getUTCDateString(checkDate);
+        
+        if (relevantDays.includes(checkDateStr)) {
+          streak++;
+          // Move to previous day
+          checkDate.setUTCDate(checkDate.getUTCDate() - 1);
+        } else {
+          break;
+        }
+      }
+
+      return streak;
+    } catch (error) {
+      logger.error('StreakModel.calculateCurrentStreak', 'Error calculating streak', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Validate and recalculate all streaks (LeetCode style)
    * @returns {Promise<boolean>} Whether fixes were applied
    */
   async validateAndFixStreaks() {
@@ -232,32 +294,20 @@ export class StreakModel {
       logger.info('StreakModel.validateAndFixStreaks', 'Validating streak consistency');
       
       let hasChanges = false;
-      const completedDays = Object.keys(this.streakData.completedDays).sort();
+      const today = DateUtils.getUTCDateString();
       
-      // Validate personalized streak
-      const personalizedDays = completedDays.filter(date => 
-        this.streakData.completedDays[date].solvedPersonalized
-      );
-      
-      if (personalizedDays.length > 0) {
-        const correctPersonalizedStreak = this.calculateCorrectStreak(personalizedDays);
-        if (correctPersonalizedStreak !== this.streakData.personalizedStreak) {
-          this.streakData.personalizedStreak = correctPersonalizedStreak;
-          hasChanges = true;
-        }
+      // Recalculate personalized streak
+      const correctPersonalizedStreak = this.calculateCurrentStreak('personalized', today);
+      if (correctPersonalizedStreak !== this.streakData.personalizedStreak) {
+        this.streakData.personalizedStreak = correctPersonalizedStreak;
+        hasChanges = true;
       }
       
-      // Validate random streak
-      const randomDays = completedDays.filter(date => 
-        this.streakData.completedDays[date].solvedRandom
-      );
-      
-      if (randomDays.length > 0) {
-        const correctRandomStreak = this.calculateCorrectStreak(randomDays);
-        if (correctRandomStreak !== this.streakData.randomStreak) {
-          this.streakData.randomStreak = correctRandomStreak;
-          hasChanges = true;
-        }
+      // Recalculate random streak
+      const correctRandomStreak = this.calculateCurrentStreak('random', today);
+      if (correctRandomStreak !== this.streakData.randomStreak) {
+        this.streakData.randomStreak = correctRandomStreak;
+        hasChanges = true;
       }
       
       if (hasChanges) {
@@ -270,37 +320,5 @@ export class StreakModel {
       logger.error('StreakModel.validateAndFixStreaks', 'Error validating streaks', error);
       return false;
     }
-  }
-
-  /**
-   * Calculate correct streak from consecutive days
-   * @param {Array} sortedDays - Sorted array of date strings
-   * @returns {number} Correct streak count
-   */
-  calculateCorrectStreak(sortedDays) {
-    if (sortedDays.length === 0) return 0;
-    
-    const today = DateUtils.getUTCDateString();
-    const todayIndex = sortedDays.indexOf(today);
-    
-    // If today is not in the list, streak is 0
-    if (todayIndex === -1) return 0;
-    
-    let streak = 1;
-    
-    // Count backwards from today
-    for (let i = todayIndex - 1; i >= 0; i--) {
-      const currentDate = new Date(sortedDays[i + 1] + 'T00:00:00.000Z');
-      const previousDate = new Date(sortedDays[i] + 'T00:00:00.000Z');
-      const daysDiff = DateUtils.getDaysDifference(previousDate, currentDate);
-      
-      if (daysDiff === 1) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-    
-    return streak;
   }
 }

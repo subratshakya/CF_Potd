@@ -114,6 +114,8 @@ export class BackgroundService {
       // If today is already marked as completed, skip
       if (streakModel.streakData.completedDays[today]) {
         logger.debug('BackgroundService.checkUserStreak', `${username}: Today already completed`);
+        // Still validate streaks to ensure accuracy
+        await streakModel.validateAndFixStreaks();
         return;
       }
       
@@ -121,6 +123,8 @@ export class BackgroundService {
       const todayProblems = await this.getTodayProblems(username);
       if (!todayProblems) {
         logger.debug('BackgroundService.checkUserStreak', `${username}: No cached problems found`);
+        // Check if streak should be reset due to missed days
+        await this.checkStreakReset(streakModel);
         return;
       }
       
@@ -157,10 +161,60 @@ export class BackgroundService {
         await streakModel.markDayCompleted(today, solvedProblems, solvedPersonalized, solvedRandom);
       } else {
         logger.debug('BackgroundService.checkUserStreak', `${username}: No problems solved today`);
+        // Check if streak should be reset
+        await this.checkStreakReset(streakModel);
       }
+      
+      // Always validate streaks for accuracy
+      await streakModel.validateAndFixStreaks();
       
     } catch (error) {
       logger.error('BackgroundService.checkUserStreak', `Error checking streak for ${username}`, error);
+    }
+  }
+
+  /**
+   * Check if streaks should be reset due to missed days
+   * @param {StreakModel} streakModel - Streak model instance
+   */
+  async checkStreakReset(streakModel) {
+    try {
+      const today = DateUtils.getUTCDateString();
+      const yesterday = DateUtils.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
+      
+      const todayData = streakModel.streakData.completedDays[today];
+      const yesterdayData = streakModel.streakData.completedDays[yesterday];
+      
+      let hasChanges = false;
+      
+      // Check personalized streak reset
+      const solvedPersonalizedToday = todayData && todayData.solvedPersonalized;
+      const solvedPersonalizedYesterday = yesterdayData && yesterdayData.solvedPersonalized;
+      
+      if (!solvedPersonalizedToday && !solvedPersonalizedYesterday && streakModel.streakData.personalizedStreak > 0) {
+        logger.info('BackgroundService.checkStreakReset', 'Resetting personalized streak due to missed days');
+        streakModel.streakData.personalizedStreak = 0;
+        streakModel.streakData.lastPersonalizedDate = null;
+        hasChanges = true;
+      }
+      
+      // Check random streak reset
+      const solvedRandomToday = todayData && todayData.solvedRandom;
+      const solvedRandomYesterday = yesterdayData && yesterdayData.solvedRandom;
+      
+      if (!solvedRandomToday && !solvedRandomYesterday && streakModel.streakData.randomStreak > 0) {
+        logger.info('BackgroundService.checkStreakReset', 'Resetting random streak due to missed days');
+        streakModel.streakData.randomStreak = 0;
+        streakModel.streakData.lastRandomDate = null;
+        hasChanges = true;
+      }
+      
+      if (hasChanges) {
+        await streakModel.save();
+      }
+      
+    } catch (error) {
+      logger.error('BackgroundService.checkStreakReset', 'Error checking streak reset', error);
     }
   }
 

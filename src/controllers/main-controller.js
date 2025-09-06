@@ -331,14 +331,17 @@ export class MainController {
     
     if (isToday) {
       await this.checkTodaysSolutions();
+      // Validate streaks to ensure accuracy
+      await this.streakModel.validateAndFixStreaks();
     }
 
     const { userRating, isLoggedIn, ratingBased, random } = this.dailyProblems;
     const todayCompleted = this.streakModel.isTodayCompleted();
+    const streakStatus = this.streakModel.getStreakStatus();
     
     modalBody.innerHTML = this.renderProblemsContent(
       userRating, isLoggedIn, ratingBased, random, 
-      isToday, todayCompleted, this.dailyProblems.date
+      isToday, todayCompleted, this.dailyProblems.date, streakStatus
     );
 
     if (isToday) {
@@ -355,14 +358,15 @@ export class MainController {
    * @param {boolean} isToday - Whether showing today
    * @param {Object} todayCompleted - Today's completion status
    * @param {string} dateString - Date string
+   * @param {Object} streakStatus - Current streak status
    * @returns {string} HTML content
    */
-  renderProblemsContent(userRating, isLoggedIn, ratingBased, random, isToday, todayCompleted, dateString) {
+  renderProblemsContent(userRating, isLoggedIn, ratingBased, random, isToday, todayCompleted, dateString, streakStatus) {
     return `
       <div class="cf-problems-container">
         ${isToday ? UIComponents.renderCountdownTimer(DateUtils.getTimeUntilNextUTCDay()) : ''}
         
-        ${UIComponents.renderStreakSection(this.streakModel.streakData, todayCompleted)}
+        ${UIComponents.renderStreakSection(streakStatus || this.streakModel.streakData, todayCompleted)}
         
         ${UIComponents.renderUserInfo(
           this.currentUser, userRating, this.userVerified, 

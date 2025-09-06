@@ -34,6 +34,14 @@ describe('StreakModel', () => {
 
   describe('updatePersonalizedStreak', () => {
     test('should start streak at 1 for first solve', () => {
+      // Mark today as completed first
+      const today = '2024-01-15';
+      streakModel.streakData.completedDays[today] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      
       streakModel.updatePersonalizedStreak('2024-01-15');
       
       expect(streakModel.streakData.personalizedStreak).toBe(1);
@@ -42,6 +50,18 @@ describe('StreakModel', () => {
     });
 
     test('should increment streak for consecutive days', () => {
+      // Set up consecutive days
+      streakModel.streakData.completedDays['2024-01-15'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      streakModel.streakData.completedDays['2024-01-16'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      
       streakModel.streakData.personalizedStreak = 1;
       streakModel.streakData.lastPersonalizedDate = '2024-01-15';
       
@@ -51,7 +71,19 @@ describe('StreakModel', () => {
       expect(streakModel.streakData.maxPersonalizedStreak).toBe(2);
     });
 
-    test('should reset streak for non-consecutive days', () => {
+    test('should calculate correct streak for non-consecutive days', () => {
+      // Set up non-consecutive days (gap on 2024-01-16 and 2024-01-17)
+      streakModel.streakData.completedDays['2024-01-15'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      streakModel.streakData.completedDays['2024-01-18'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      
       streakModel.streakData.personalizedStreak = 5;
       streakModel.streakData.lastPersonalizedDate = '2024-01-15';
       
@@ -83,6 +115,55 @@ describe('StreakModel', () => {
       expect(result.any).toBe(true);
       expect(result.personalized).toBe(true);
       expect(result.random).toBe(false);
+    });
+  });
+
+  describe('calculateCurrentStreak', () => {
+    test('should calculate streak correctly for consecutive days', () => {
+      // Set up 3 consecutive days
+      const today = '2024-01-18';
+      streakModel.streakData.completedDays['2024-01-16'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      streakModel.streakData.completedDays['2024-01-17'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      streakModel.streakData.completedDays['2024-01-18'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      
+      const streak = streakModel.calculateCurrentStreak('personalized', today);
+      expect(streak).toBe(3);
+    });
+
+    test('should return 0 for no completed days', () => {
+      const streak = streakModel.calculateCurrentStreak('personalized', '2024-01-15');
+      expect(streak).toBe(0);
+    });
+
+    test('should handle gaps in completion correctly', () => {
+      // Set up days with a gap
+      const today = '2024-01-18';
+      streakModel.streakData.completedDays['2024-01-15'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      // Gap on 2024-01-16 and 2024-01-17
+      streakModel.streakData.completedDays['2024-01-18'] = {
+        solved: true,
+        solvedPersonalized: true,
+        solvedRandom: false
+      };
+      
+      const streak = streakModel.calculateCurrentStreak('personalized', today);
+      expect(streak).toBe(1); // Only today counts due to gap
     });
   });
 });
