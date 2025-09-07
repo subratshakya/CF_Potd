@@ -366,7 +366,11 @@ export class MainController {
       <div class="cf-problems-container">
         ${isToday ? UIComponents.renderCountdownTimer(DateUtils.getTimeUntilNextUTCDay()) : ''}
         
-        ${UIComponents.renderStreakSection(streakStatus || this.streakModel.streakData, todayCompleted)}
+        ${UIComponents.renderStreakSection(
+          streakStatus || this.streakModel.streakData, 
+          todayCompleted, 
+          streakStatus?.serverDataStale
+        )}
         
         ${UIComponents.renderUserInfo(
           this.currentUser, userRating, this.userVerified, 

@@ -174,16 +174,26 @@ export class BackgroundService {
   }
 
   /**
-   * Check if streaks should be reset due to missed days
+   * Check if streaks should be reset due to missed days (with server validation)
    * @param {StreakModel} streakModel - Streak model instance
    */
-  async checkStreakReset(streakModel) {
+  async checkStreakResetWithServerValidation(streakModel) {
     try {
       const today = DateUtils.getUTCDateString();
       const yesterday = DateUtils.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
       
       const todayData = streakModel.streakData.completedDays[today];
       const yesterdayData = streakModel.streakData.completedDays[yesterday];
+      
+      // Check if we have recent server data
+      const daysSinceLastCheck = streakModel.getDaysSinceLastSuccessfulCheck();
+      const hasRecentServerData = daysSinceLastCheck <= 1;
+      
+      if (!hasRecentServerData) {
+        logger.info('BackgroundService.checkStreakResetWithServerValidation', 
+          'Server data too old, not resetting streaks', { daysSinceLastCheck });
+        return;
+      }
       
       let hasChanges = false;
       
@@ -192,7 +202,8 @@ export class BackgroundService {
       const solvedPersonalizedYesterday = yesterdayData && yesterdayData.solvedPersonalized;
       
       if (!solvedPersonalizedToday && !solvedPersonalizedYesterday && streakModel.streakData.personalizedStreak > 0) {
-        logger.info('BackgroundService.checkStreakReset', 'Resetting personalized streak due to missed days');
+        logger.info('BackgroundService.checkStreakResetWithServerValidation', 
+          'Resetting personalized streak due to confirmed missed days');
         streakModel.streakData.personalizedStreak = 0;
         streakModel.streakData.lastPersonalizedDate = null;
         hasChanges = true;
@@ -203,7 +214,8 @@ export class BackgroundService {
       const solvedRandomYesterday = yesterdayData && yesterdayData.solvedRandom;
       
       if (!solvedRandomToday && !solvedRandomYesterday && streakModel.streakData.randomStreak > 0) {
-        logger.info('BackgroundService.checkStreakReset', 'Resetting random streak due to missed days');
+        logger.info('BackgroundService.checkStreakResetWithServerValidation', 
+          'Resetting random streak due to confirmed missed days');
         streakModel.streakData.randomStreak = 0;
         streakModel.streakData.lastRandomDate = null;
         hasChanges = true;
@@ -214,7 +226,7 @@ export class BackgroundService {
       }
       
     } catch (error) {
-      logger.error('BackgroundService.checkStreakReset', 'Error checking streak reset', error);
+      logger.error('BackgroundService.checkStreakResetWithServerValidation', 'Error checking streak reset', error);
     }
   }
 

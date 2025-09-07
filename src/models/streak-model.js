@@ -27,6 +27,14 @@ export class StreakModel {
       completedDays: {},
       lastPersonalizedDate: null,
       lastRandomDate: null,
+      lastSuccessfulCheck: null,
+      lastKnownGoodStreak: {
+        personalizedStreak: 0,
+        randomStreak: 0,
+        maxPersonalizedStreak: 0,
+        maxRandomStreak: 0,
+        timestamp: null
+      },
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -218,13 +226,19 @@ export class StreakModel {
       this.streakData.randomStreak = randomStreak;
     }
     
+    const daysSinceLastCheck = this.getDaysSinceLastSuccessfulCheck();
+    const serverDataStale = daysSinceLastCheck > 1;
+    
     return {
       personalizedStreak,
       randomStreak,
       maxPersonalizedStreak: this.streakData.maxPersonalizedStreak,
       maxRandomStreak: this.streakData.maxRandomStreak,
-      shouldResetPersonalized: this.shouldResetStreak('personalized'),
-      shouldResetRandom: this.shouldResetStreak('random')
+      shouldResetPersonalized: this.shouldResetStreakForMissedDays('personalized'),
+      shouldResetRandom: this.shouldResetStreakForMissedDays('random'),
+      serverDataStale,
+      daysSinceLastCheck,
+      lastSuccessfulCheck: this.streakData.lastSuccessfulCheck
     };
   }
 

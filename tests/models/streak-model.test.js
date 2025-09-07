@@ -166,4 +166,56 @@ describe('StreakModel', () => {
       expect(streak).toBe(1); // Only today counts due to gap
     });
   });
+
+  describe('saveKnownGoodStreak', () => {
+    test('should save current streak as known good state', async () => {
+      streakModel.streakData.personalizedStreak = 5;
+      streakModel.streakData.randomStreak = 3;
+      
+      const result = await streakModel.saveKnownGoodStreak();
+      
+      expect(result).toBe(true);
+      expect(streakModel.streakData.lastKnownGoodStreak.personalizedStreak).toBe(5);
+      expect(streakModel.streakData.lastKnownGoodStreak.randomStreak).toBe(3);
+      expect(streakModel.streakData.lastKnownGoodStreak.timestamp).toBeTruthy();
+    });
+  });
+
+  describe('restoreFromKnownGoodStreak', () => {
+    test('should restore streak from known good state if recent', async () => {
+      // Set up known good state from yesterday
+      streakModel.streakData.lastKnownGoodStreak = {
+        personalizedStreak: 5,
+        randomStreak: 3,
+        maxPersonalizedStreak: 10,
+        maxRandomStreak: 8,
+        timestamp: Date.now() - (24 * 60 * 60 * 1000) // 1 day ago
+      };
+      streakModel.streakData.lastSuccessfulCheck = '2024-01-14'; // Yesterday
+      
+      // Current streak is 0 (due to server error)
+      streakModel.streakData.personalizedStreak = 0;
+      streakModel.streakData.randomStreak = 0;
+      
+      const result = await streakModel.restoreFromKnownGoodStreak();
+      
+      expect(result).toBe(true);
+      expect(streakModel.streakData.personalizedStreak).toBe(5);
+      expect(streakModel.streakData.randomStreak).toBe(3);
+    });
+
+    test('should not restore if known good state is too old', async () => {
+      // Set up old known good state
+      streakModel.streakData.lastKnownGoodStreak = {
+        personalizedStreak: 5,
+        randomStreak: 3,
+        timestamp: Date.now() - (5 * 24 * 60 * 60 * 1000) // 5 days ago
+      };
+      streakModel.streakData.lastSuccessfulCheck = '2024-01-10'; // 5 days ago
+      
+      const result = await streakModel.restoreFromKnownGoodStreak();
+      
+      expect(result).toBe(false);
+    });
+  });
 });

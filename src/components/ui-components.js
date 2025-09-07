@@ -136,13 +136,18 @@ export class UIComponents {
    * Render streak section component
    * @param {Object} streakData - Streak data object
    * @param {Object} todayCompleted - Today's completion status
+   * @param {boolean} serverDataStale - Whether server data is stale
    * @returns {string} HTML string
    */
-  static renderStreakSection(streakData, todayCompleted) {
+  static renderStreakSection(streakData, todayCompleted, serverDataStale = false) {
     if (!streakData) return '';
+
+    const staleWarning = serverDataStale ? 
+      '<div style="font-size: 10px; color: #ff6b35; text-align: center; margin-bottom: 8px;">⚠️ Server data stale - showing last known streaks</div>' : '';
 
     return `
       <div class="cf-streak-section">
+        ${staleWarning}
         <div class="cf-streak-item">
           <div class="cf-streak-icon">🔥</div>
           <div class="cf-streak-info">
