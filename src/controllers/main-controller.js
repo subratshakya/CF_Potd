@@ -1,16 +1,6 @@
 // Main controller for Codeforces Daily Problems Extension
 
-import { CONFIG } from '../config/constants.js';
-import { logger } from '../utils/logger.js';
-import { DateUtils } from '../utils/date-utils.js';
-import { StorageService } from '../services/storage-service.js';
-import { ProblemService } from '../services/problem-service.js';
-import { UserDetectionService } from '../services/user-detection-service.js';
-import { StreakModel } from '../models/streak-model.js';
-import { UIComponents } from '../components/ui-components.js';
-import { CalendarComponent } from '../components/calendar-component.js';
-
-export class MainController {
+window.MainController = class {
   constructor() {
     this.currentUser = null;
     this.dailyProblems = null;
@@ -31,14 +21,14 @@ export class MainController {
    */
   async init() {
     try {
-      logger.info('MainController.init', 'Initializing extension');
+      window.logger.info('MainController.init', 'Initializing extension');
       
       // Wait for page to load
       setTimeout(async () => {
         await this.detectUser();
       }, 2000);
     } catch (error) {
-      logger.error('MainController.init', 'Error during initialization', error);
+      window.logger.error('MainController.init', 'Error during initialization', error);
     }
   }
 
@@ -47,37 +37,37 @@ export class MainController {
    */
   async detectUser() {
     try {
-      logger.info('MainController.detectUser', 'Starting user detection');
+      window.logger.info('MainController.detectUser', 'Starting user detection');
       
-      const detectedUsername = await UserDetectionService.detectUser();
+      const detectedUsername = await window.UserDetectionService.detectUser();
 
       // Clear cache if user changed
-      const previousUser = await StorageService.get(CONFIG.CACHE.KEYS.CURRENT_USER);
+      const previousUser = await window.StorageService.get(window.CONFIG.CACHE.KEYS.CURRENT_USER);
       if (previousUser !== detectedUsername) {
-        logger.info('MainController.detectUser', `User changed from ${previousUser} to ${detectedUsername}`);
-        await StorageService.clearUserCache();
-        await StorageService.set(CONFIG.CACHE.KEYS.CURRENT_USER, detectedUsername);
+        window.logger.info('MainController.detectUser', `User changed from ${previousUser} to ${detectedUsername}`);
+        await window.StorageService.clearUserCache();
+        await window.StorageService.set(window.CONFIG.CACHE.KEYS.CURRENT_USER, detectedUsername);
       }
 
       // Handle guest user
       if (!detectedUsername) {
-        logger.info('MainController.detectUser', 'No user detected - treating as guest');
+        window.logger.info('MainController.detectUser', 'No user detected - treating as guest');
         await this.setupGuestUser();
         return;
       }
 
       // Verify detected user
-      const userInfo = await UserDetectionService.verifyAndFetchUserInfo(detectedUsername);
+      const userInfo = await window.UserDetectionService.verifyAndFetchUserInfo(detectedUsername);
       
       if (userInfo) {
         await this.setupVerifiedUser(detectedUsername, userInfo);
       } else {
-        logger.warn('MainController.detectUser', 'User verification failed - treating as guest');
+        window.logger.warn('MainController.detectUser', 'User verification failed - treating as guest');
         await this.setupGuestUser();
       }
 
     } catch (error) {
-      logger.error('MainController.detectUser', 'Error during user detection', error);
+      window.logger.error('MainController.detectUser', 'Error during user detection', error);
       await this.setupGuestUser();
     }
   }
@@ -89,7 +79,7 @@ export class MainController {
     this.currentUser = null;
     this.currentUserRating = null;
     this.userVerified = true;
-    this.streakModel = new StreakModel(null);
+    this.streakModel = new window.StreakModel(null);
     
     await this.completeSetup();
   }
@@ -101,11 +91,11 @@ export class MainController {
    */
   async setupVerifiedUser(username, userInfo) {
     this.currentUser = username;
-    this.currentUserRating = userInfo.rating || CONFIG.PROBLEMS.DEFAULT_USER_RATING;
+    this.currentUserRating = userInfo.rating || window.CONFIG.PROBLEMS.DEFAULT_USER_RATING;
     this.userVerified = true;
-    this.streakModel = new StreakModel(username);
+    this.streakModel = new window.StreakModel(username);
     
-    logger.info('MainController.setupVerifiedUser', `User verified: ${username}, Rating: ${this.currentUserRating}`);
+    window.logger.info('MainController.setupVerifiedUser', `User verified: ${username}, Rating: ${this.currentUserRating}`);
     
     await this.completeSetup();
   }
@@ -125,9 +115,9 @@ export class MainController {
       // Load daily problems
       await this.loadDailyProblems();
       
-      logger.info('MainController.completeSetup', 'Extension setup completed');
+      window.logger.info('MainController.completeSetup', 'Extension setup completed');
     } catch (error) {
-      logger.error('MainController.completeSetup', 'Error completing setup', error);
+      window.logger.error('MainController.completeSetup', 'Error completing setup', error);
     }
   }
 
@@ -136,7 +126,7 @@ export class MainController {
    */
   createFloatingButton() {
     const button = document.createElement('div');
-    button.id = CONFIG.UI.BUTTON_ID;
+    button.id = window.CONFIG.UI.BUTTON_ID;
     button.innerHTML = `
       <div class="cf-daily-fab">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -149,7 +139,7 @@ export class MainController {
     button.addEventListener('click', () => this.openModal());
     document.body.appendChild(button);
     
-    logger.debug('MainController.createFloatingButton', 'Floating button created');
+    window.logger.debug('MainController.createFloatingButton', 'Floating button created');
   }
 
   /**
@@ -157,7 +147,7 @@ export class MainController {
    */
   createModal() {
     const modal = document.createElement('div');
-    modal.id = CONFIG.UI.MODAL_ID;
+    modal.id = window.CONFIG.UI.MODAL_ID;
     modal.innerHTML = `
       <div class="cf-modal-overlay">
         <div class="cf-modal-content">
@@ -166,7 +156,7 @@ export class MainController {
             <button class="cf-modal-close" id="cf-modal-close">×</button>
           </div>
           <div class="cf-modal-body" id="cf-modal-body">
-            ${UIComponents.renderLoadingState()}
+            ${window.UIComponents.renderLoadingState()}
           </div>
         </div>
       </div>
@@ -185,7 +175,7 @@ export class MainController {
 
     document.body.appendChild(modal);
     
-    logger.debug('MainController.createModal', 'Modal created');
+    window.logger.debug('MainController.createModal', 'Modal created');
   }
 
   /**
@@ -194,9 +184,9 @@ export class MainController {
    */
   async loadDailyProblems(date = new Date()) {
     try {
-      logger.info('MainController.loadDailyProblems', `Loading problems for ${DateUtils.getUTCDateString(date)}`);
+      window.logger.info('MainController.loadDailyProblems', `Loading problems for ${window.DateUtils.getUTCDateString(date)}`);
       
-      this.dailyProblems = await ProblemService.loadDailyProblems(
+      this.dailyProblems = await window.ProblemService.loadDailyProblems(
         this.currentUser, 
         this.currentUserRating, 
         this.userVerified, 
@@ -204,12 +194,12 @@ export class MainController {
       );
       
       // Check solutions for today's problems
-      if (DateUtils.getUTCDateString(date) === DateUtils.getUTCDateString()) {
+      if (window.DateUtils.getUTCDateString(date) === window.DateUtils.getUTCDateString()) {
         await this.checkTodaysSolutions();
       }
       
     } catch (error) {
-      logger.error('MainController.loadDailyProblems', 'Error loading daily problems', error);
+      window.logger.error('MainController.loadDailyProblems', 'Error loading daily problems', error);
       this.dailyProblems = { error: 'Failed to load problems. Please try again later.' };
     }
   }
@@ -219,14 +209,14 @@ export class MainController {
    */
   async checkTodaysSolutions() {
     try {
-      await ProblemService.checkTodaysSolutions(
+      await window.ProblemService.checkTodaysSolutions(
         this.currentUser, 
         this.userVerified, 
         this.dailyProblems, 
         this.streakModel
       );
     } catch (error) {
-      logger.error('MainController.checkTodaysSolutions', 'Error checking solutions', error);
+      window.logger.error('MainController.checkTodaysSolutions', 'Error checking solutions', error);
     }
   }
 
@@ -234,7 +224,7 @@ export class MainController {
    * Open modal dialog
    */
   openModal() {
-    const modal = document.getElementById(CONFIG.UI.MODAL_ID);
+    const modal = document.getElementById(window.CONFIG.UI.MODAL_ID);
     modal.style.display = 'flex';
     this.isModalOpen = true;
     
@@ -243,27 +233,27 @@ export class MainController {
     }, 10);
 
     this.displayProblems();
-    logger.debug('MainController.openModal', 'Modal opened');
+    window.logger.debug('MainController.openModal', 'Modal opened');
   }
 
   /**
    * Close modal dialog
    */
   closeModal() {
-    const modal = document.getElementById(CONFIG.UI.MODAL_ID);
+    const modal = document.getElementById(window.CONFIG.UI.MODAL_ID);
     modal.classList.remove('cf-modal-open');
     
     setTimeout(() => {
       modal.style.display = 'none';
       this.isModalOpen = false;
-    }, CONFIG.UI.ANIMATION_DURATION);
+    }, window.CONFIG.UI.ANIMATION_DURATION);
 
     if (this.countdownInterval) {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
     }
     
-    logger.debug('MainController.closeModal', 'Modal closed');
+    window.logger.debug('MainController.closeModal', 'Modal closed');
   }
 
   /**
@@ -276,7 +266,7 @@ export class MainController {
     }
     this.displayProblems();
     
-    logger.debug('MainController.toggleCalendarView', `Calendar view: ${this.isCalendarView}`);
+    window.logger.debug('MainController.toggleCalendarView', `Calendar view: ${this.isCalendarView}`);
   }
 
   /**
@@ -287,7 +277,7 @@ export class MainController {
     this.calendarDate.setMonth(this.calendarDate.getMonth() + direction);
     this.displayProblems();
     
-    logger.debug('MainController.changeCalendarMonth', `Changed month by ${direction}`);
+    window.logger.debug('MainController.changeCalendarMonth', `Changed month by ${direction}`);
   }
 
   /**
@@ -301,7 +291,7 @@ export class MainController {
     await this.loadDailyProblems(date);
     this.displayProblems();
     
-    logger.debug('MainController.viewDateProblems', `Viewing problems for ${dateString}`);
+    window.logger.debug('MainController.viewDateProblems', `Viewing problems for ${dateString}`);
   }
 
   /**
@@ -311,22 +301,22 @@ export class MainController {
     const modalBody = document.getElementById('cf-modal-body');
     
     if (this.isCalendarView) {
-      modalBody.innerHTML = CalendarComponent.generateCalendar(this.streakModel, this.calendarDate);
+      modalBody.innerHTML = window.CalendarComponent.generateCalendar(this.streakModel, this.calendarDate);
       return;
     }
     
     if (!this.dailyProblems) {
-      modalBody.innerHTML = UIComponents.renderLoadingState();
+      modalBody.innerHTML = window.UIComponents.renderLoadingState();
       return;
     }
 
     if (this.dailyProblems.error) {
-      modalBody.innerHTML = UIComponents.renderErrorState(this.dailyProblems.error);
+      modalBody.innerHTML = window.UIComponents.renderErrorState(this.dailyProblems.error);
       return;
     }
 
     // Check if showing today's problems
-    const today = DateUtils.getUTCDateString();
+    const today = window.DateUtils.getUTCDateString();
     const isToday = this.dailyProblems.date === today;
     
     if (isToday) {
@@ -364,15 +354,15 @@ export class MainController {
   renderProblemsContent(userRating, isLoggedIn, ratingBased, random, isToday, todayCompleted, dateString, streakStatus) {
     return `
       <div class="cf-problems-container">
-        ${isToday ? UIComponents.renderCountdownTimer(DateUtils.getTimeUntilNextUTCDay()) : ''}
+        ${isToday ? window.UIComponents.renderCountdownTimer(window.DateUtils.getTimeUntilNextUTCDay()) : ''}
         
-        ${UIComponents.renderStreakSection(
+        ${window.UIComponents.renderStreakSection(
           streakStatus || this.streakModel.streakData, 
           todayCompleted, 
           streakStatus?.serverDataStale
         )}
         
-        ${UIComponents.renderUserInfo(
+        ${window.UIComponents.renderUserInfo(
           this.currentUser, userRating, this.userVerified, 
           isLoggedIn, isToday, dateString
         )}
@@ -380,13 +370,13 @@ export class MainController {
         <div class="cf-problem-section">
           <h4>${isLoggedIn ? 'Rating-Based Problem' : 'Beginner Problem'}</h4>
           <p class="cf-section-desc">${isLoggedIn ? 'Problem tailored to your skill level' : 'Problem for rating 1100-1500'}</p>
-          ${UIComponents.renderProblemCard(ratingBased, 'rating', todayCompleted.personalized)}
+          ${window.UIComponents.renderProblemCard(ratingBased, 'rating', todayCompleted.personalized)}
         </div>
         
         <div class="cf-problem-section">
           <h4>Daily Random Problem</h4>
           <p class="cf-section-desc">Universal challenge for all users (same globally)</p>
-          ${UIComponents.renderProblemCard(random, 'random', todayCompleted.random)}
+          ${window.UIComponents.renderProblemCard(random, 'random', todayCompleted.random)}
         </div>
         
         ${isLoggedIn ? `
@@ -420,7 +410,7 @@ export class MainController {
     const countdownElement = document.querySelector('.cf-countdown-timer');
     if (!countdownElement) return;
 
-    const timeLeft = DateUtils.getTimeUntilNextUTCDay();
+    const timeLeft = window.DateUtils.getTimeUntilNextUTCDay();
 
     countdownElement.innerHTML = `
       <div class="cf-countdown-display">
@@ -430,4 +420,3 @@ export class MainController {
       </div>
     `;
   }
-}

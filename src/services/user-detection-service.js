@@ -1,53 +1,50 @@
 // User detection and verification service
 
-import { apiService } from './api-service.js';
-import { logger } from '../utils/logger.js';
-
-export class UserDetectionService {
+window.UserDetectionService = class {
   /**
    * Detect current user from page
    * @returns {Promise<string|null>} Username or null
    */
   static async detectUser() {
-    logger.info('UserDetectionService.detectUser', 'Starting user detection');
+    window.logger.info('UserDetectionService.detectUser', 'Starting user detection');
     let detectedUsername = null;
 
     // Method 1: Check for logout link (most reliable)
     detectedUsername = this.detectFromLogoutArea();
     if (detectedUsername) {
-      logger.info('UserDetectionService.detectUser', `Found via logout area: ${detectedUsername}`);
+      window.logger.info('UserDetectionService.detectUser', `Found via logout area: ${detectedUsername}`);
       return detectedUsername;
     }
 
     // Method 2: Check page scripts
     detectedUsername = this.detectFromScripts();
     if (detectedUsername) {
-      logger.info('UserDetectionService.detectUser', `Found via scripts: ${detectedUsername}`);
+      window.logger.info('UserDetectionService.detectUser', `Found via scripts: ${detectedUsername}`);
       return detectedUsername;
     }
 
     // Method 3: Check meta tags and data attributes
     detectedUsername = this.detectFromMetaTags();
     if (detectedUsername) {
-      logger.info('UserDetectionService.detectUser', `Found via meta tags: ${detectedUsername}`);
+      window.logger.info('UserDetectionService.detectUser', `Found via meta tags: ${detectedUsername}`);
       return detectedUsername;
     }
 
     // Method 4: Check header navigation
     detectedUsername = this.detectFromNavigation();
     if (detectedUsername) {
-      logger.info('UserDetectionService.detectUser', `Found via navigation: ${detectedUsername}`);
+      window.logger.info('UserDetectionService.detectUser', `Found via navigation: ${detectedUsername}`);
       return detectedUsername;
     }
 
     // Method 5: Check profile page URL
     detectedUsername = this.detectFromProfilePage();
     if (detectedUsername) {
-      logger.info('UserDetectionService.detectUser', `Found via profile page: ${detectedUsername}`);
+      window.logger.info('UserDetectionService.detectUser', `Found via profile page: ${detectedUsername}`);
       return detectedUsername;
     }
 
-    logger.info('UserDetectionService.detectUser', 'No user detected');
+    window.logger.info('UserDetectionService.detectUser', 'No user detected');
     return null;
   }
 
@@ -206,11 +203,10 @@ export class UserDetectionService {
    */
   static async verifyAndFetchUserInfo(username) {
     try {
-      logger.info('UserDetectionService.verifyAndFetchUserInfo', `Verifying user: ${username}`);
-      return await apiService.fetchUserInfo(username);
+      window.logger.info('UserDetectionService.verifyAndFetchUserInfo', `Verifying user: ${username}`);
+      return await window.apiService.fetchUserInfo(username);
     } catch (error) {
-      logger.error('UserDetectionService.verifyAndFetchUserInfo', `Verification failed for ${username}`, error);
+      window.logger.error('UserDetectionService.verifyAndFetchUserInfo', `Verification failed for ${username}`, error);
       return null;
     }
   }
-}

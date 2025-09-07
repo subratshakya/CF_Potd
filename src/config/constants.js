@@ -1,6 +1,6 @@
 // Application constants and configuration
 
-export const CONFIG = {
+window.CONFIG = {
   // API Configuration
   API: {
     BASE_URL: 'https://codeforces.com/api',
@@ -57,7 +57,7 @@ export const CONFIG = {
   }
 };
 
-export const RATING_CLASSES = {
+window.RATING_CLASSES = {
   NEWBIE: { min: 0, max: 1199, class: 'newbie', title: 'Newbie' },
   PUPIL: { min: 1200, max: 1399, class: 'pupil', title: 'Pupil' },
   SPECIALIST: { min: 1400, max: 1599, class: 'specialist', title: 'Specialist' },
@@ -70,7 +70,7 @@ export const RATING_CLASSES = {
   LEGENDARY_GRANDMASTER: { min: 3000, max: Infinity, class: 'legendary-grandmaster', title: 'Legendary Grandmaster' }
 };
 
-export const ERROR_MESSAGES = {
+window.ERROR_MESSAGES = {
   NETWORK_ERROR: 'Network error. Please check your connection.',
   API_ERROR: 'Failed to fetch data from Codeforces API.',
   USER_NOT_FOUND: 'User not found or verification failed.',

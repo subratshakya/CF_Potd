@@ -1,8 +1,6 @@
 // Calendar component for displaying problem history
 
-import { DateUtils } from '../utils/date-utils.js';
-
-export class CalendarComponent {
+window.CalendarComponent = class {
   /**
    * Generate calendar HTML for a given month
    * @param {Object} streakModel - Streak model instance
@@ -13,7 +11,7 @@ export class CalendarComponent {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const today = new Date();
-    const todayStr = DateUtils.getUTCDateString(today);
+    const todayStr = window.DateUtils.getUTCDateString(today);
     
     // Get first day of month and number of days
     const firstDay = new Date(year, month, 1);
@@ -84,7 +82,7 @@ export class CalendarComponent {
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const dateStr = DateUtils.getUTCDateString(date);
+      const dateStr = window.DateUtils.getUTCDateString(date);
       const dayData = streakModel.streakData.completedDays[dateStr];
       const isToday = dateStr === todayStr;
       const isFuture = date > today;
@@ -159,4 +157,3 @@ export class CalendarComponent {
       </div>
     `;
   }
-}

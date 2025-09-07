@@ -1,13 +1,6 @@
 // Problem service for fetching and managing daily problems
 
-import { CONFIG, ERROR_MESSAGES } from '../config/constants.js';
-import { apiService } from './api-service.js';
-import { StorageService } from './storage-service.js';
-import { DateUtils } from '../utils/date-utils.js';
-import { HashUtils } from '../utils/hash-utils.js';
-import { logger } from '../utils/logger.js';
-
-export class ProblemService {
+window.ProblemService = class {
   /**
    * Load daily problems for a user and date
    * @param {string} username - Username (null for guest)
@@ -18,21 +11,21 @@ export class ProblemService {
    */
   static async loadDailyProblems(username, userRating, userVerified, date = new Date()) {
     try {
-      const dateKey = DateUtils.getUTCDateString(date);
-      logger.info('ProblemService.loadDailyProblems', `Loading problems for ${dateKey}`);
+      const dateKey = window.DateUtils.getUTCDateString(date);
+      window.logger.info('ProblemService.loadDailyProblems', `Loading problems for ${dateKey}`);
 
       // Check cache first
       const cachedProblems = await this.getCachedProblems(username, userRating, dateKey);
       if (cachedProblems) {
-        logger.info('ProblemService.loadDailyProblems', 'Loaded from cache');
+        window.logger.info('ProblemService.loadDailyProblems', 'Loaded from cache');
         return cachedProblems;
       }
 
       // Fetch new problems
       return await this.fetchDailyProblems(username, userRating, userVerified, date);
     } catch (error) {
-      logger.error('ProblemService.loadDailyProblems', 'Error loading daily problems', error);
-      return { error: ERROR_MESSAGES.GENERIC_ERROR };
+      window.logger.error('ProblemService.loadDailyProblems', 'Error loading daily problems', error);
+      return { error: window.ERROR_MESSAGES.GENERIC_ERROR };
     }
   }
 
@@ -45,18 +38,18 @@ export class ProblemService {
    */
   static async getCachedProblems(username, userRating, dateKey) {
     try {
-      const globalCacheKey = `${CONFIG.CACHE.KEYS.GLOBAL_PREFIX}${dateKey}`;
-      const globalCache = await StorageService.get(globalCacheKey);
+      const globalCacheKey = `${window.CONFIG.CACHE.KEYS.GLOBAL_PREFIX}${dateKey}`;
+      const globalCache = await window.StorageService.get(globalCacheKey);
 
       let userCache = null;
       if (username && userRating) {
-        const userCacheKey = `${CONFIG.CACHE.KEYS.USER_PREFIX}${username}-${dateKey}`;
-        userCache = await StorageService.get(userCacheKey);
+        const userCacheKey = `${window.CONFIG.CACHE.KEYS.USER_PREFIX}${username}-${dateKey}`;
+        userCache = await window.StorageService.get(userCacheKey);
       }
 
       if (globalCache && (!username || userCache)) {
         return {
-          userRating: userRating || CONFIG.PROBLEMS.DEFAULT_USER_RATING,
+          userRating: userRating || window.CONFIG.PROBLEMS.DEFAULT_USER_RATING,
           isLoggedIn: !!(username && userRating),
           ratingBased: userCache?.ratingProblem || null,
           random: globalCache.randomProblem,
@@ -66,7 +59,7 @@ export class ProblemService {
 
       return null;
     } catch (error) {
-      logger.error('ProblemService.getCachedProblems', 'Error getting cached problems', error);
+      window.logger.error('ProblemService.getCachedProblems', 'Error getting cached problems', error);
       return null;
     }
   }
@@ -81,31 +74,33 @@ export class ProblemService {
    */
   static async fetchDailyProblems(username, userRating, userVerified, date = new Date()) {
     try {
-      logger.info('ProblemService.fetchDailyProblems', 'Fetching new problems from API');
+      window.logger.info('ProblemService.fetchDailyProblems', 'Fetching new problems from API');
       
-      const rating = userRating || CONFIG.PROBLEMS.DEFAULT_USER_RATING;
-      const dateKey = DateUtils.getUTCDateString(date);
+      const rating = userRating || window.CONFIG.PROBLEMS.DEFAULT_USER_RATING;
+      const dateKey = window.DateUtils.getUTCDateString(date);
 
       // Fetch all problems
-      const problems = await apiService.fetchProblems();
+      const problems = await window.apiService.fetchProblems();
 
       // Filter problems for user rating range
       const ratingBasedProblems = problems.filter(problem => 
         problem.rating && 
-        problem.rating >= (rating - CONFIG.PROBLEMS.RATING_BUFFER.LOW) && 
-        problem.rating <= (rating + CONFIG.PROBLEMS.RATING_BUFFER.HIGH)
+        problem.rating >= (rating - window.CONFIG.PROBLEMS.RATING_BUFFER.LOW) && 
+        problem.rating <= (rating + window.CONFIG.PROBLEMS.RATING_BUFFER.HIGH)
       );
 
       // Filter problems for random selection
       const allProblems = problems.filter(problem => 
         problem.rating && 
-        problem.rating >= CONFIG.PROBLEMS.MIN_RATING && 
-        problem.rating <= CONFIG.PROBLEMS.MAX_RATING
+        problem.rating >= window.CONFIG.PROBLEMS.MIN_RATING && 
+        problem.rating <= window.CONFIG.PROBLEMS.MAX_RATING
       );
 
       // Select daily problems
       const ratingProblem = HashUtils.selectDailyItem(ratingBasedProblems, dateKey, 'rating');
       const randomProblem = HashUtils.selectDailyItem(allProblems, dateKey, 'random');
+    const ratingProblem = window.HashUtils.selectDailyItem(ratingBasedProblems, dateKey, 'rating');
+    const randomProblem = window.HashUtils.selectDailyItem(allProblems, dateKey, 'random');
 
       const dailyProblems = {
         userRating: rating,
@@ -118,12 +113,12 @@ export class ProblemService {
       // Cache the problems
       await this.cacheProblems(username, rating, dateKey, ratingProblem, randomProblem);
 
-      logger.info('ProblemService.fetchDailyProblems', 'Successfully fetched and cached new problems');
+      window.logger.info('ProblemService.fetchDailyProblems', 'Successfully fetched and cached new problems');
       return dailyProblems;
 
     } catch (error) {
-      logger.error('ProblemService.fetchDailyProblems', 'Error fetching daily problems', error);
-      return { error: ERROR_MESSAGES.API_ERROR };
+      window.logger.error('ProblemService.fetchDailyProblems', 'Error fetching daily problems', error);
+      return { error: window.ERROR_MESSAGES.API_ERROR };
     }
   }
 
@@ -138,25 +133,25 @@ export class ProblemService {
   static async cacheProblems(username, userRating, dateKey, ratingProblem, randomProblem) {
     try {
       // Cache global random problem
-      const globalCacheKey = `${CONFIG.CACHE.KEYS.GLOBAL_PREFIX}${dateKey}`;
-      await StorageService.set(globalCacheKey, {
+      const globalCacheKey = `${window.CONFIG.CACHE.KEYS.GLOBAL_PREFIX}${dateKey}`;
+      await window.StorageService.set(globalCacheKey, {
         randomProblem: randomProblem,
         cachedAt: Date.now()
       });
 
       // Cache user-specific rating problem
       if (username && userRating) {
-        const userCacheKey = `${CONFIG.CACHE.KEYS.USER_PREFIX}${username}-${dateKey}`;
-        await StorageService.set(userCacheKey, {
+        const userCacheKey = `${window.CONFIG.CACHE.KEYS.USER_PREFIX}${username}-${dateKey}`;
+        await window.StorageService.set(userCacheKey, {
           ratingProblem: ratingProblem,
           userRating: userRating,
           cachedAt: Date.now()
         });
       }
 
-      logger.debug('ProblemService.cacheProblems', `Cached problems for ${dateKey}`);
+      window.logger.debug('ProblemService.cacheProblems', `Cached problems for ${dateKey}`);
     } catch (error) {
-      logger.error('ProblemService.cacheProblems', 'Error caching problems', error);
+      window.logger.error('ProblemService.cacheProblems', 'Error caching problems', error);
     }
   }
 
@@ -170,22 +165,22 @@ export class ProblemService {
    */
   static async checkTodaysSolutions(username, userVerified, dailyProblems, streakManager) {
     if (!username || !userVerified || !dailyProblems) {
-      logger.debug('ProblemService.checkTodaysSolutions', 'Cannot check - user not verified or no problems');
+      window.logger.debug('ProblemService.checkTodaysSolutions', 'Cannot check - user not verified or no problems');
       return false;
     }
 
-    const today = DateUtils.getUTCDateString();
+    const today = window.DateUtils.getUTCDateString();
     
     // If already marked as completed, skip
     if (streakManager.streakData.completedDays[today]) {
-      logger.debug('ProblemService.checkTodaysSolutions', 'Today already marked as completed');
+      window.logger.debug('ProblemService.checkTodaysSolutions', 'Today already marked as completed');
       return true;
     }
 
     try {
-      logger.info('ProblemService.checkTodaysSolutions', `Checking solutions for ${username}`);
+      window.logger.info('ProblemService.checkTodaysSolutions', `Checking solutions for ${username}`);
       
-      const submissions = await apiService.fetchUserSubmissions(username, 100);
+      const submissions = await window.apiService.fetchUserSubmissions(username, 100);
       const { ratingBased, random } = dailyProblems;
       
       const solvedProblems = [];
@@ -194,7 +189,7 @@ export class ProblemService {
       
       for (const submission of submissions) {
         const submissionTime = new Date(submission.creationTimeSeconds * 1000);
-        const submissionDate = DateUtils.getUTCDateString(submissionTime);
+        const submissionDate = window.DateUtils.getUTCDateString(submissionTime);
         
         if (submissionDate === today && submission.verdict === 'OK') {
           const problemId = `${submission.problem.contestId}${submission.problem.index}`;
@@ -202,13 +197,13 @@ export class ProblemService {
           if (ratingBased && `${ratingBased.contestId}${ratingBased.index}` === problemId) {
             solvedProblems.push(problemId);
             solvedPersonalized = true;
-            logger.info('ProblemService.checkTodaysSolutions', `Found solved personalized problem: ${problemId}`);
+            window.logger.info('ProblemService.checkTodaysSolutions', `Found solved personalized problem: ${problemId}`);
           }
           
           if (random && `${random.contestId}${random.index}` === problemId) {
             solvedProblems.push(problemId);
             solvedRandom = true;
-            logger.info('ProblemService.checkTodaysSolutions', `Found solved random problem: ${problemId}`);
+            window.logger.info('ProblemService.checkTodaysSolutions', `Found solved random problem: ${problemId}`);
           }
         }
       }
@@ -220,8 +215,7 @@ export class ProblemService {
 
       return false;
     } catch (error) {
-      logger.error('ProblemService.checkTodaysSolutions', 'Error checking solutions', error);
+      window.logger.error('ProblemService.checkTodaysSolutions', 'Error checking solutions', error);
       return false;
     }
   }
-}

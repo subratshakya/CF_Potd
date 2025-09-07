@@ -1,6 +1,6 @@
 // Hash utility functions for consistent problem selection
 
-export class HashUtils {
+window.HashUtils = class {
   /**
    * Generate hash code from string
    * @param {string} str - String to hash
@@ -44,4 +44,3 @@ export class HashUtils {
   static generateSeed(dateKey, username = '', type = '') {
     return `${dateKey}-${username}-${type}-cf-daily-2024`;
   }
-}

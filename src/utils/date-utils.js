@@ -1,6 +1,6 @@
 // Date utility functions
 
-export class DateUtils {
+window.DateUtils = class {
   /**
    * Get UTC date string in YYYY-MM-DD format
    * @param {Date} date - Date object (defaults to current date)
@@ -90,4 +90,3 @@ export class DateUtils {
     const utcDate2 = new Date(this.getUTCDateString(date2) + 'T00:00:00.000Z');
     return Math.floor((utcDate2 - utcDate1) / (1000 * 60 * 60 * 24));
   }
-}

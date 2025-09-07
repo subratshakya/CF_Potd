@@ -1,21 +1,18 @@
 // UI component rendering functions
 
-import { CONFIG, RATING_CLASSES } from '../config/constants.js';
-import { DateUtils } from '../utils/date-utils.js';
-
-export class UIComponents {
+window.UIComponents = class {
   /**
    * Get rating class for styling
    * @param {number} rating - User rating
    * @returns {string} CSS class name
    */
   static getRatingClass(rating) {
-    for (const [key, config] of Object.entries(RATING_CLASSES)) {
+    for (const [key, config] of Object.entries(window.RATING_CLASSES)) {
       if (rating >= config.min && rating <= config.max) {
         return config.class;
       }
     }
-    return RATING_CLASSES.NEWBIE.class;
+    return window.RATING_CLASSES.NEWBIE.class;
   }
 
   /**
@@ -24,12 +21,12 @@ export class UIComponents {
    * @returns {string} Rank title
    */
   static getRankTitle(rating) {
-    for (const [key, config] of Object.entries(RATING_CLASSES)) {
+    for (const [key, config] of Object.entries(window.RATING_CLASSES)) {
       if (rating >= config.min && rating <= config.max) {
         return config.title;
       }
     }
-    return RATING_CLASSES.NEWBIE.title;
+    return window.RATING_CLASSES.NEWBIE.title;
   }
 
   /**
@@ -49,7 +46,7 @@ export class UIComponents {
     }
 
     const ratingClass = `cf-rating-${Math.floor(problem.rating / 100) * 100}`;
-    const problemUrl = `${CONFIG.API.BASE_URL.replace('/api', '')}/problemset/problem/${problem.contestId}/${problem.index}`;
+    const problemUrl = `${window.CONFIG.API.BASE_URL.replace('/api', '')}/problemset/problem/${problem.contestId}/${problem.index}`;
     
     return `
       <div class="cf-problem-card ${isSolved ? 'cf-problem-solved' : ''}" data-type="${type}">
@@ -200,7 +197,7 @@ export class UIComponents {
            <p>Log in to get personalized problems and automatic tracking</p>`
         }
         ${!isToday ? `<p class="cf-date-info">Problems for ${DateUtils.formatDateForDisplay(new Date(dateString))}</p>` : ''}
+        ${!isToday ? `<p class="cf-date-info">Problems for ${window.DateUtils.formatDateForDisplay(new Date(dateString))}</p>` : ''}
       </div>
     `;
   }
-}

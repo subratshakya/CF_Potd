@@ -1,9 +1,6 @@
 // Storage service for Chrome extension storage operations
 
-import { CONFIG } from '../config/constants.js';
-import { logger } from '../utils/logger.js';
-
-export class StorageService {
+window.StorageService = class {
   /**
    * Get data from Chrome storage
    * @param {string} key - Storage key
@@ -11,7 +8,7 @@ export class StorageService {
    */
   static async get(key) {
     try {
-      logger.trace('StorageService.get', `Getting key: ${key}`);
+      window.logger.trace('StorageService.get', `Getting key: ${key}`);
       
       return new Promise((resolve) => {
         chrome.storage.local.get([key], (result) => {
@@ -21,7 +18,7 @@ export class StorageService {
         });
       });
     } catch (error) {
-      logger.error('StorageService.get', `Error getting key ${key}`, error);
+      window.logger.error('StorageService.get', `Error getting key ${key}`, error);
       return null;
     }
   }
@@ -34,7 +31,7 @@ export class StorageService {
    */
   static async set(key, value) {
     try {
-      logger.trace('StorageService.set', `Setting key: ${key}`, value);
+      window.logger.trace('StorageService.set', `Setting key: ${key}`, value);
       
       return new Promise((resolve) => {
         chrome.storage.local.set({ [key]: value }, () => {
@@ -43,7 +40,7 @@ export class StorageService {
         });
       });
     } catch (error) {
-      logger.error('StorageService.set', `Error setting key ${key}`, error);
+      window.logger.error('StorageService.set', `Error setting key ${key}`, error);
       return false;
     }
   }
@@ -57,12 +54,12 @@ export class StorageService {
       return new Promise((resolve) => {
         chrome.storage.local.get(null, (items) => {
           const keys = Object.keys(items);
-          logger.trace('StorageService.getAllKeys', `Found ${keys.length} keys`);
+          window.logger.trace('StorageService.getAllKeys', `Found ${keys.length} keys`);
           resolve(keys);
         });
       });
     } catch (error) {
-      logger.error('StorageService.getAllKeys', 'Error getting all keys', error);
+      window.logger.error('StorageService.getAllKeys', 'Error getting all keys', error);
       return [];
     }
   }
@@ -74,7 +71,7 @@ export class StorageService {
    */
   static async remove(keys) {
     try {
-      logger.trace('StorageService.remove', `Removing keys:`, keys);
+      window.logger.trace('StorageService.remove', `Removing keys:`, keys);
       
       return new Promise((resolve) => {
         chrome.storage.local.remove(keys, () => {
@@ -83,7 +80,7 @@ export class StorageService {
         });
       });
     } catch (error) {
-      logger.error('StorageService.remove', 'Error removing keys', error);
+      window.logger.error('StorageService.remove', 'Error removing keys', error);
       return false;
     }
   }
@@ -94,23 +91,23 @@ export class StorageService {
    */
   static async clearUserCache() {
     try {
-      logger.info('StorageService.clearUserCache', 'Clearing user cache');
+      window.logger.info('StorageService.clearUserCache', 'Clearing user cache');
       
       const keys = await this.getAllKeys();
-      const keysToRemove = keys.filter(key => 
-        key.startsWith(CONFIG.CACHE.KEYS.STREAK_PREFIX) || 
-        key.startsWith(CONFIG.CACHE.KEYS.RATING_PREFIX) ||
-        key.startsWith(CONFIG.CACHE.KEYS.USER_PREFIX)
+      const keysToRemove = keys.filter(key =>
+        key.startsWith(window.CONFIG.CACHE.KEYS.STREAK_PREFIX) ||
+        key.startsWith(window.CONFIG.CACHE.KEYS.RATING_PREFIX) ||
+        key.startsWith(window.CONFIG.CACHE.KEYS.USER_PREFIX)
       );
       
       if (keysToRemove.length > 0) {
         await this.remove(keysToRemove);
-        logger.info('StorageService.clearUserCache', `Cleared ${keysToRemove.length} cache entries`);
+        window.logger.info('StorageService.clearUserCache', `Cleared ${keysToRemove.length} cache entries`);
       }
       
       return true;
     } catch (error) {
-      logger.error('StorageService.clearUserCache', 'Error clearing user cache', error);
+      window.logger.error('StorageService.clearUserCache', 'Error clearing user cache', error);
       return false;
     }
   }
@@ -121,13 +118,14 @@ export class StorageService {
    * @returns {Promise<boolean>} Success status
    */
   static async clearOldCache(maxAgeHours = CONFIG.CACHE.DURATION_HOURS) {
+  static async clearOldCache(maxAgeHours = window.CONFIG.CACHE.DURATION_HOURS) {
     try {
-      logger.info('StorageService.clearOldCache', `Clearing cache older than ${maxAgeHours} hours`);
+      window.logger.info('StorageService.clearOldCache', `Clearing cache older than ${maxAgeHours} hours`);
       
       const keys = await this.getAllKeys();
-      const cacheKeys = keys.filter(key => 
-        key.startsWith(CONFIG.CACHE.KEYS.GLOBAL_PREFIX) || 
-        key.startsWith(CONFIG.CACHE.KEYS.USER_PREFIX)
+      const cacheKeys = keys.filter(key =>
+        key.startsWith(window.CONFIG.CACHE.KEYS.GLOBAL_PREFIX) ||
+        key.startsWith(window.CONFIG.CACHE.KEYS.USER_PREFIX)
       );
       
       const keysToRemove = [];
@@ -142,13 +140,12 @@ export class StorageService {
       
       if (keysToRemove.length > 0) {
         await this.remove(keysToRemove);
-        logger.info('StorageService.clearOldCache', `Removed ${keysToRemove.length} old cache entries`);
+        window.logger.info('StorageService.clearOldCache', `Removed ${keysToRemove.length} old cache entries`);
       }
       
       return true;
     } catch (error) {
-      logger.error('StorageService.clearOldCache', 'Error clearing old cache', error);
+      window.logger.error('StorageService.clearOldCache', 'Error clearing old cache', error);
       return false;
     }
   }
-}

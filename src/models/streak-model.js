@@ -1,17 +1,12 @@
 // Streak data model and management
 
-import { CONFIG } from '../config/constants.js';
-import { StorageService } from '../services/storage-service.js';
-import { DateUtils } from '../utils/date-utils.js';
-import { logger } from '../utils/logger.js';
-
-export class StreakModel {
+window.StreakModel = class {
   constructor(username = null) {
     this.username = username;
     this.streakData = null;
     this.storageKey = username 
-      ? `${CONFIG.CACHE.KEYS.STREAK_PREFIX}${username}` 
-      : `${CONFIG.CACHE.KEYS.STREAK_PREFIX}guest`;
+      ? `${window.CONFIG.CACHE.KEYS.STREAK_PREFIX}${username}` 
+      : `${window.CONFIG.CACHE.KEYS.STREAK_PREFIX}guest`;
   }
 
   /**
@@ -46,15 +41,15 @@ export class StreakModel {
    */
   async load() {
     try {
-      logger.info('StreakModel.load', `Loading streak data for ${this.username || 'guest'}`);
+      window.logger.info('StreakModel.load', `Loading streak data for ${this.username || 'guest'}`);
       
-      const data = await StorageService.get(this.storageKey);
+      const data = await window.StorageService.get(this.storageKey);
       this.streakData = data || this.getDefaultStreakData();
       
-      logger.debug('StreakModel.load', 'Loaded streak data', this.streakData);
+      window.logger.debug('StreakModel.load', 'Loaded streak data', this.streakData);
       return true;
     } catch (error) {
-      logger.error('StreakModel.load', 'Error loading streak data', error);
+      window.logger.error('StreakModel.load', 'Error loading streak data', error);
       this.streakData = this.getDefaultStreakData();
       return false;
     }
@@ -67,17 +62,17 @@ export class StreakModel {
   async save() {
     try {
       if (!this.streakData) {
-        logger.warn('StreakModel.save', 'No streak data to save');
+        window.logger.warn('StreakModel.save', 'No streak data to save');
         return false;
       }
 
       this.streakData.updatedAt = Date.now();
-      await StorageService.set(this.storageKey, this.streakData);
+      await window.StorageService.set(this.storageKey, this.streakData);
       
-      logger.debug('StreakModel.save', 'Saved streak data', this.streakData);
+      window.logger.debug('StreakModel.save', 'Saved streak data', this.streakData);
       return true;
     } catch (error) {
-      logger.error('StreakModel.save', 'Error saving streak data', error);
+      window.logger.error('StreakModel.save', 'Error saving streak data', error);
       return false;
     }
   }
@@ -92,7 +87,7 @@ export class StreakModel {
    */
   async markDayCompleted(dateString, solvedProblems = [], solvedPersonalized = false, solvedRandom = false) {
     try {
-      logger.info('StreakModel.markDayCompleted', `Marking ${dateString} as completed`, {
+      window.logger.info('StreakModel.markDayCompleted', `Marking ${dateString} as completed`, {
         solvedProblems,
         solvedPersonalized,
         solvedRandom
@@ -100,7 +95,7 @@ export class StreakModel {
 
       // Check if already marked to avoid duplicate processing
       if (this.streakData.completedDays[dateString]) {
-        logger.debug('StreakModel.markDayCompleted', `Day ${dateString} already marked as completed`);
+        window.logger.debug('StreakModel.markDayCompleted', `Day ${dateString} already marked as completed`);
         return true;
       }
 
@@ -126,7 +121,7 @@ export class StreakModel {
       await this.save();
       return true;
     } catch (error) {
-      logger.error('StreakModel.markDayCompleted', 'Error marking day completed', error);
+      window.logger.error('StreakModel.markDayCompleted', 'Error marking day completed', error);
       return false;
     }
   }
@@ -146,7 +141,7 @@ export class StreakModel {
       streak
     );
 
-    logger.debug('StreakModel.updatePersonalizedStreak', 'Updated personalized streak', {
+    window.logger.debug('StreakModel.updatePersonalizedStreak', 'Updated personalized streak', {
       current: streak,
       max: this.streakData.maxPersonalizedStreak
     });
@@ -167,7 +162,7 @@ export class StreakModel {
       streak
     );
 
-    logger.debug('StreakModel.updateRandomStreak', 'Updated random streak', {
+    window.logger.debug('StreakModel.updateRandomStreak', 'Updated random streak', {
       current: streak,
       max: this.streakData.maxRandomStreak
     });
@@ -178,7 +173,7 @@ export class StreakModel {
    * @returns {Object} Today's completion status
    */
   isTodayCompleted() {
-    const today = DateUtils.getUTCDateString();
+    const today = window.DateUtils.getUTCDateString();
     const todayData = this.streakData.completedDays[today];
     
     return {
@@ -194,8 +189,8 @@ export class StreakModel {
    * @returns {boolean} Whether streak should be reset
    */
   shouldResetStreak(type) {
-    const today = DateUtils.getUTCDateString();
-    const yesterday = DateUtils.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const today = window.DateUtils.getUTCDateString();
+    const yesterday = window.DateUtils.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
     
     const todayData = this.streakData.completedDays[today];
     const yesterdayData = this.streakData.completedDays[yesterday];
@@ -212,7 +207,7 @@ export class StreakModel {
    * @returns {Object} Streak status object
    */
   getStreakStatus() {
-    const today = DateUtils.getUTCDateString();
+    const today = window.DateUtils.getUTCDateString();
     
     // Recalculate streaks based on actual completion history
     const personalizedStreak = this.calculateCurrentStreak('personalized', today);
@@ -247,7 +242,7 @@ export class StreakModel {
    * @returns {Object} Time remaining object
    */
   getTimeUntilNextUTCDay() {
-    return DateUtils.getTimeUntilNextUTCDay();
+    return window.DateUtils.getTimeUntilNextUTCDay();
   }
 
   /**
@@ -256,7 +251,7 @@ export class StreakModel {
    * @returns {string} UTC date string
    */
   getUTCDateString(date = new Date()) {
-    return DateUtils.getUTCDateString(date);
+    return window.DateUtils.getUTCDateString(date);
   }
 
   /**
@@ -281,7 +276,7 @@ export class StreakModel {
 
       // Count consecutive days backwards from current date
       while (true) {
-        const checkDateStr = DateUtils.getUTCDateString(checkDate);
+        const checkDateStr = window.DateUtils.getUTCDateString(checkDate);
         
         if (relevantDays.includes(checkDateStr)) {
           streak++;
@@ -294,7 +289,7 @@ export class StreakModel {
 
       return streak;
     } catch (error) {
-      logger.error('StreakModel.calculateCurrentStreak', 'Error calculating streak', error);
+      window.logger.error('StreakModel.calculateCurrentStreak', 'Error calculating streak', error);
       return 0;
     }
   }
@@ -305,10 +300,10 @@ export class StreakModel {
    */
   async validateAndFixStreaks() {
     try {
-      logger.info('StreakModel.validateAndFixStreaks', 'Validating streak consistency');
+      window.logger.info('StreakModel.validateAndFixStreaks', 'Validating streak consistency');
       
       let hasChanges = false;
-      const today = DateUtils.getUTCDateString();
+      const today = window.DateUtils.getUTCDateString();
       
       // Recalculate personalized streak
       const correctPersonalizedStreak = this.calculateCurrentStreak('personalized', today);
@@ -326,13 +321,12 @@ export class StreakModel {
       
       if (hasChanges) {
         await this.save();
-        logger.info('StreakModel.validateAndFixStreaks', 'Applied streak corrections');
+        window.logger.info('StreakModel.validateAndFixStreaks', 'Applied streak corrections');
       }
       
       return hasChanges;
     } catch (error) {
-      logger.error('StreakModel.validateAndFixStreaks', 'Error validating streaks', error);
+      window.logger.error('StreakModel.validateAndFixStreaks', 'Error validating streaks', error);
       return false;
     }
   }
-}

@@ -1,13 +1,10 @@
 // API service for Codeforces API interactions
 
-import { CONFIG, ERROR_MESSAGES } from '../config/constants.js';
-import { logger } from '../utils/logger.js';
-
-export class ApiService {
+window.ApiService = class {
   constructor() {
-    this.baseUrl = CONFIG.API.BASE_URL;
-    this.timeout = CONFIG.API.TIMEOUT;
-    this.retryAttempts = CONFIG.API.RETRY_ATTEMPTS;
+    this.baseUrl = window.CONFIG.API.BASE_URL;
+    this.timeout = window.CONFIG.API.TIMEOUT;
+    this.retryAttempts = window.CONFIG.API.RETRY_ATTEMPTS;
   }
 
   /**
@@ -25,7 +22,7 @@ export class ApiService {
 
     for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
       try {
-        logger.debug('ApiService.makeRequest', `Attempt ${attempt} for ${endpoint}`);
+        window.logger.debug('ApiService.makeRequest', `Attempt ${attempt} for ${endpoint}`);
         
         const response = await fetch(url, requestOptions);
         
@@ -39,15 +36,15 @@ export class ApiService {
           throw new Error(`API Error: ${data.comment || 'Unknown error'}`);
         }
 
-        logger.debug('ApiService.makeRequest', `Success for ${endpoint}`, data);
+        window.logger.debug('ApiService.makeRequest', `Success for ${endpoint}`, data);
         return data;
 
       } catch (error) {
-        logger.warn('ApiService.makeRequest', `Attempt ${attempt} failed for ${endpoint}`, error);
+        window.logger.warn('ApiService.makeRequest', `Attempt ${attempt} failed for ${endpoint}`, error);
         
         if (attempt === this.retryAttempts) {
-          logger.error('ApiService.makeRequest', `All attempts failed for ${endpoint}`, error);
-          throw new Error(ERROR_MESSAGES.API_ERROR);
+          window.logger.error('ApiService.makeRequest', `All attempts failed for ${endpoint}`, error);
+          throw new Error(window.ERROR_MESSAGES.API_ERROR);
         }
         
         // Wait before retry (exponential backoff)
@@ -62,11 +59,11 @@ export class ApiService {
    */
   async fetchProblems() {
     try {
-      logger.info('ApiService.fetchProblems', 'Fetching problems from API');
-      const data = await this.makeRequest(CONFIG.API.ENDPOINTS.PROBLEMS);
+      window.logger.info('ApiService.fetchProblems', 'Fetching problems from API');
+      const data = await this.makeRequest(window.CONFIG.API.ENDPOINTS.PROBLEMS);
       return data.result.problems;
     } catch (error) {
-      logger.error('ApiService.fetchProblems', 'Failed to fetch problems', error);
+      window.logger.error('ApiService.fetchProblems', 'Failed to fetch problems', error);
       throw error;
     }
   }
@@ -78,16 +75,16 @@ export class ApiService {
    */
   async fetchUserInfo(username) {
     try {
-      logger.info('ApiService.fetchUserInfo', `Fetching info for user: ${username}`);
-      const data = await this.makeRequest(`${CONFIG.API.ENDPOINTS.USER_INFO}?handles=${username}`);
+      window.logger.info('ApiService.fetchUserInfo', `Fetching info for user: ${username}`);
+      const data = await this.makeRequest(`${window.CONFIG.API.ENDPOINTS.USER_INFO}?handles=${username}`);
       
       if (!data.result || data.result.length === 0) {
-        throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+        throw new Error(window.ERROR_MESSAGES.USER_NOT_FOUND);
       }
       
       return data.result[0];
     } catch (error) {
-      logger.error('ApiService.fetchUserInfo', `Failed to fetch user info for ${username}`, error);
+      window.logger.error('ApiService.fetchUserInfo', `Failed to fetch user info for ${username}`, error);
       throw error;
     }
   }
@@ -99,14 +96,15 @@ export class ApiService {
    * @returns {Promise<Array>} Array of submissions
    */
   async fetchUserSubmissions(username, count = CONFIG.CACHE.MAX_SUBMISSIONS_CHECK || 100) {
+  async fetchUserSubmissions(username, count = window.CONFIG.CACHE.MAX_SUBMISSIONS_CHECK || 100) {
     try {
-      logger.info('ApiService.fetchUserSubmissions', `Fetching submissions for user: ${username}`);
+      window.logger.info('ApiService.fetchUserSubmissions', `Fetching submissions for user: ${username}`);
       const data = await this.makeRequest(
-        `${CONFIG.API.ENDPOINTS.USER_STATUS}?handle=${username}&from=1&count=${count}`
+        `${window.CONFIG.API.ENDPOINTS.USER_STATUS}?handle=${username}&from=1&count=${count}`
       );
       return data.result;
     } catch (error) {
-      logger.error('ApiService.fetchUserSubmissions', `Failed to fetch submissions for ${username}`, error);
+      window.logger.error('ApiService.fetchUserSubmissions', `Failed to fetch submissions for ${username}`, error);
       throw error;
     }
   }
@@ -119,7 +117,7 @@ export class ApiService {
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-}
+};
 
-// Export singleton instance
-export const apiService = new ApiService();
+// Create singleton instance
+window.apiService = new window.ApiService();

@@ -1,5 +1,3 @@
-// Centralized logging utility
-
 class Logger {
   constructor() {
     this.isDevelopment = process.env.NODE_ENV === 'development';
@@ -42,4 +40,4 @@ class Logger {
   }
 }
 
-export const logger = new Logger();
+window.logger = new Logger();
