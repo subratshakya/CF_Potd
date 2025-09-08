@@ -420,3 +420,7 @@ window.MainController = class {
       </div>
     `;
   }
+};
+
+// Initialize the extension
+window.cfDaily = new window.MainController();
