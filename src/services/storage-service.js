@@ -13,7 +13,7 @@ window.StorageService = class {
       return new Promise((resolve) => {
         chrome.storage.local.get([key], (result) => {
           const data = result[key];
-          logger.trace('StorageService.get', `Retrieved data for ${key}`, data);
+          window.logger.trace('StorageService.get', `Retrieved data for ${key}`, data);
           resolve(data);
         });
       });
@@ -35,7 +35,7 @@ window.StorageService = class {
       
       return new Promise((resolve) => {
         chrome.storage.local.set({ [key]: value }, () => {
-          logger.trace('StorageService.set', `Successfully set ${key}`);
+          window.logger.trace('StorageService.set', `Successfully set ${key}`);
           resolve(true);
         });
       });
@@ -75,7 +75,7 @@ window.StorageService = class {
       
       return new Promise((resolve) => {
         chrome.storage.local.remove(keys, () => {
-          logger.trace('StorageService.remove', `Successfully removed keys`);
+          window.logger.trace('StorageService.remove', `Successfully removed keys`);
           resolve(true);
         });
       });
@@ -117,7 +117,6 @@ window.StorageService = class {
    * @param {number} maxAgeHours - Maximum age in hours
    * @returns {Promise<boolean>} Success status
    */
-  static async clearOldCache(maxAgeHours = CONFIG.CACHE.DURATION_HOURS) {
   static async clearOldCache(maxAgeHours = window.CONFIG.CACHE.DURATION_HOURS) {
     try {
       window.logger.info('StorageService.clearOldCache', `Clearing cache older than ${maxAgeHours} hours`);
@@ -149,3 +148,4 @@ window.StorageService = class {
       return false;
     }
   }
+};

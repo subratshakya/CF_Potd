@@ -95,7 +95,6 @@ window.ApiService = class {
    * @param {number} count - Number of submissions to fetch
    * @returns {Promise<Array>} Array of submissions
    */
-  async fetchUserSubmissions(username, count = CONFIG.CACHE.MAX_SUBMISSIONS_CHECK || 100) {
   async fetchUserSubmissions(username, count = window.CONFIG.CACHE.MAX_SUBMISSIONS_CHECK || 100) {
     try {
       window.logger.info('ApiService.fetchUserSubmissions', `Fetching submissions for user: ${username}`);

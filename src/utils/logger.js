@@ -38,6 +38,7 @@ class Logger {
   trace(functionName, action, data = null) {
     this.debug(`${functionName}: ${action}`, data);
   }
-}
+};
 
-window.logger = new Logger();
+window.Logger = Logger;
+window.logger = new window.Logger();

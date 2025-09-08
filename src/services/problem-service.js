@@ -97,10 +97,8 @@ window.ProblemService = class {
       );
 
       // Select daily problems
-      const ratingProblem = HashUtils.selectDailyItem(ratingBasedProblems, dateKey, 'rating');
-      const randomProblem = HashUtils.selectDailyItem(allProblems, dateKey, 'random');
-    const ratingProblem = window.HashUtils.selectDailyItem(ratingBasedProblems, dateKey, 'rating');
-    const randomProblem = window.HashUtils.selectDailyItem(allProblems, dateKey, 'random');
+      const ratingProblem = window.HashUtils.selectDailyItem(ratingBasedProblems, dateKey, 'rating');
+      const randomProblem = window.HashUtils.selectDailyItem(allProblems, dateKey, 'random');
 
       const dailyProblems = {
         userRating: rating,
@@ -219,3 +217,4 @@ window.ProblemService = class {
       return false;
     }
   }
+}

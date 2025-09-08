@@ -1,4 +1,3 @@
-// UI component rendering functions
 
 window.UIComponents = class {
   /**
@@ -46,7 +45,7 @@ window.UIComponents = class {
     }
 
     const ratingClass = `cf-rating-${Math.floor(problem.rating / 100) * 100}`;
-    const problemUrl = `${window.CONFIG.API.BASE_URL.replace('/api', '')}/problemset/problem/${problem.contestId}/${problem.index}`;
+   const problemUrl = `${window.CONFIG.API.BASE_URL.replace('/api', '')}/problemset/problem/${problem.contestId}/${problem.index}`;
     
     return `
       <div class="cf-problem-card ${isSolved ? 'cf-problem-solved' : ''}" data-type="${type}">

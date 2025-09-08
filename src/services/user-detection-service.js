@@ -205,8 +205,6 @@ window.UserDetectionService = class {
     try {
       window.logger.info('UserDetectionService.verifyAndFetchUserInfo', `Verifying user: ${username}`);
       return await window.apiService.fetchUserInfo(username);
+window.UserDetectionService = class {
     } catch (error) {
       window.logger.error('UserDetectionService.verifyAndFetchUserInfo', `Verification failed for ${username}`, error);
-      return null;
-    }
-  }

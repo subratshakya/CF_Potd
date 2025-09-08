@@ -1,4 +1,3 @@
-// Calendar component for displaying problem history
 
 window.CalendarComponent = class {
   /**
