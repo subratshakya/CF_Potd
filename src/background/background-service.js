@@ -1,300 +1,423 @@
-// Background service for Chrome extension
+// Main controller for Codeforces Daily Problems Extension
 
-import { CONFIG } from '../config/constants.js';
-import { logger } from '../utils/logger.js';
-import { DateUtils } from '../utils/date-utils.js';
-import { StorageService } from '../services/storage-service.js';
-import { apiService } from '../services/api-service.js';
-import { StreakModel } from '../models/streak-model.js';
-
-export class BackgroundService {
+window.MainController = class {
   constructor() {
-    this.setupEventListeners();
+    this.currentUser = null;
+    this.dailyProblems = null;
+    this.isModalOpen = false;
+    this.streakModel = null;
+    this.currentUserRating = null;
+    this.countdownInterval = null;
+    this.userVerified = false;
+    this.isCalendarView = false;
+    this.selectedDate = null;
+    this.calendarDate = new Date();
+    
+    this.init();
   }
 
   /**
-   * Setup Chrome extension event listeners
+   * Initialize the extension
    */
-  setupEventListeners() {
-    // Extension installation
-    chrome.runtime.onInstalled.addListener(() => {
-      logger.info('BackgroundService', 'Extension installed');
-      this.setupPeriodicStreakChecks();
-    });
-
-    // Extension startup
-    chrome.runtime.onStartup.addListener(() => {
-      logger.info('BackgroundService', 'Extension started');
-      this.cleanupOldCache();
-      this.setupPeriodicStreakChecks();
-    });
-
-    // Alarm events
-    chrome.alarms.onAlarm.addListener(async (alarm) => {
-      if (alarm.name === 'streak-check-midnight' || alarm.name === 'streak-check-noon') {
-        logger.info('BackgroundService', `Streak check triggered: ${alarm.name}`);
-        await this.performStreakCheck();
-      }
-    });
-
-    // Tab updates
-    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-      if (changeInfo.status === 'complete' && tab.url && tab.url.includes('codeforces.com')) {
-        logger.debug('BackgroundService', 'Codeforces page loaded');
-      }
-    });
-
-    // Message handling
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      this.handleMessage(message, sender, sendResponse);
-      return true; // Keep message channel open
-    });
-  }
-
-  /**
-   * Setup periodic streak checks
-   */
-  setupPeriodicStreakChecks() {
+  async init() {
     try {
-      // Clear existing alarms
-      chrome.alarms.clearAll();
+      window.logger.info('MainController.init', 'Initializing extension');
       
-      // Create alarms for streak checking
-      chrome.alarms.create('streak-check-midnight', {
-        when: DateUtils.getNextAlarmTime(0, 0), // 12:00 AM UTC
-        periodInMinutes: 24 * 60 // Every 24 hours
-      });
-      
-      chrome.alarms.create('streak-check-noon', {
-        when: DateUtils.getNextAlarmTime(12, 0), // 12:00 PM UTC
-        periodInMinutes: 24 * 60 // Every 24 hours
-      });
-      
-      logger.info('BackgroundService.setupPeriodicStreakChecks', 'Periodic streak checks scheduled');
+      // Wait for page to load
+      setTimeout(async () => {
+        await this.detectUser();
+      }, 2000);
     } catch (error) {
-      logger.error('BackgroundService.setupPeriodicStreakChecks', 'Error setting up alarms', error);
+      window.logger.error('MainController.init', 'Error during initialization', error);
     }
   }
 
   /**
-   * Perform streak validation for all users
+   * Detect and verify current user
    */
-  async performStreakCheck() {
+  async detectUser() {
     try {
-      logger.info('BackgroundService.performStreakCheck', 'Starting streak check for all users');
+      window.logger.info('MainController.detectUser', 'Starting user detection');
       
-      const allKeys = await StorageService.getAllKeys();
-      const streakKeys = allKeys.filter(key => key.startsWith(CONFIG.CACHE.KEYS.STREAK_PREFIX));
-      
-      for (const streakKey of streakKeys) {
-        const username = streakKey.replace(CONFIG.CACHE.KEYS.STREAK_PREFIX, '');
-        if (username === 'guest') continue; // Skip guest users
-        
-        logger.debug('BackgroundService.performStreakCheck', `Checking streak for user: ${username}`);
-        await this.checkUserStreak(username);
-      }
-      
-      logger.info('BackgroundService.performStreakCheck', 'Completed streak check for all users');
-    } catch (error) {
-      logger.error('BackgroundService.performStreakCheck', 'Error during streak check', error);
-    }
-  }
+      const detectedUsername = await window.UserDetectionService.detectUser();
 
-  /**
-   * Check individual user's streak
-   * @param {string} username - Username to check
-   */
-  async checkUserStreak(username) {
-    try {
-      const streakModel = new StreakModel(username);
-      await streakModel.load();
-      
-      const today = DateUtils.getUTCDateString();
-      
-      // If today is already marked as completed, skip
-      if (streakModel.streakData.completedDays[today]) {
-        logger.debug('BackgroundService.checkUserStreak', `${username}: Today already completed`);
-        // Still validate streaks to ensure accuracy
-        await streakModel.validateAndFixStreaks();
+      // Clear cache if user changed
+      const previousUser = await window.StorageService.get(window.CONFIG.CACHE.KEYS.CURRENT_USER);
+      if (previousUser !== detectedUsername) {
+        window.logger.info('MainController.detectUser', `User changed from ${previousUser} to ${detectedUsername}`);
+        await window.StorageService.clearUserCache();
+        await window.StorageService.set(window.CONFIG.CACHE.KEYS.CURRENT_USER, detectedUsername);
+      }
+
+      // Handle guest user
+      if (!detectedUsername) {
+        window.logger.info('MainController.detectUser', 'No user detected - treating as guest');
+        await this.setupGuestUser();
         return;
       }
+
+      // Verify detected user
+      const userInfo = await window.UserDetectionService.verifyAndFetchUserInfo(detectedUsername);
       
-      // Get today's problems
-      const todayProblems = await this.getTodayProblems(username);
-      if (!todayProblems) {
-        logger.debug('BackgroundService.checkUserStreak', `${username}: No cached problems found`);
-        // Check if streak should be reset due to missed days
-        await this.checkStreakReset(streakModel);
-        return;
-      }
-      
-      // Check submissions
-      const submissions = await apiService.fetchUserSubmissions(username, 50);
-      const solvedProblems = [];
-      let solvedPersonalized = false;
-      let solvedRandom = false;
-      
-      for (const submission of submissions) {
-        const submissionTime = new Date(submission.creationTimeSeconds * 1000);
-        const submissionDate = DateUtils.getUTCDateString(submissionTime);
-        
-        if (submissionDate === today && submission.verdict === 'OK') {
-          const problemId = `${submission.problem.contestId}${submission.problem.index}`;
-          
-          if (todayProblems.ratingBased && 
-              `${todayProblems.ratingBased.contestId}${todayProblems.ratingBased.index}` === problemId) {
-            solvedPersonalized = true;
-            solvedProblems.push(problemId);
-          }
-          
-          if (todayProblems.random && 
-              `${todayProblems.random.contestId}${todayProblems.random.index}` === problemId) {
-            solvedRandom = true;
-            solvedProblems.push(problemId);
-          }
-        }
-      }
-      
-      // Update streak if problems were solved
-      if (solvedProblems.length > 0) {
-        logger.info('BackgroundService.checkUserStreak', `${username}: Solved problems today`, solvedProblems);
-        await streakModel.markDayCompleted(today, solvedProblems, solvedPersonalized, solvedRandom);
+      if (userInfo) {
+        await this.setupVerifiedUser(detectedUsername, userInfo);
       } else {
-        logger.debug('BackgroundService.checkUserStreak', `${username}: No problems solved today`);
-        // Check if streak should be reset
-        await this.checkStreakReset(streakModel);
+        window.logger.warn('MainController.detectUser', 'User verification failed - treating as guest');
+        await this.setupGuestUser();
       }
-      
-      // Always validate streaks for accuracy
-      await streakModel.validateAndFixStreaks();
-      
+
     } catch (error) {
-      logger.error('BackgroundService.checkUserStreak', `Error checking streak for ${username}`, error);
+      window.logger.error('MainController.detectUser', 'Error during user detection', error);
+      await this.setupGuestUser();
     }
   }
 
   /**
-   * Check if streaks should be reset due to missed days (with server validation)
-   * @param {StreakModel} streakModel - Streak model instance
+   * Setup for guest user
    */
-  async checkStreakResetWithServerValidation(streakModel) {
-    try {
-      const today = DateUtils.getUTCDateString();
-      const yesterday = DateUtils.getUTCDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      
-      const todayData = streakModel.streakData.completedDays[today];
-      const yesterdayData = streakModel.streakData.completedDays[yesterday];
-      
-      // Check if we have recent server data
-      const daysSinceLastCheck = streakModel.getDaysSinceLastSuccessfulCheck();
-      const hasRecentServerData = daysSinceLastCheck <= 1;
-      
-      if (!hasRecentServerData) {
-        logger.info('BackgroundService.checkStreakResetWithServerValidation', 
-          'Server data too old, not resetting streaks', { daysSinceLastCheck });
-        return;
-      }
-      
-      let hasChanges = false;
-      
-      // Check personalized streak reset
-      const solvedPersonalizedToday = todayData && todayData.solvedPersonalized;
-      const solvedPersonalizedYesterday = yesterdayData && yesterdayData.solvedPersonalized;
-      
-      if (!solvedPersonalizedToday && !solvedPersonalizedYesterday && streakModel.streakData.personalizedStreak > 0) {
-        logger.info('BackgroundService.checkStreakResetWithServerValidation', 
-          'Resetting personalized streak due to confirmed missed days');
-        streakModel.streakData.personalizedStreak = 0;
-        streakModel.streakData.lastPersonalizedDate = null;
-        hasChanges = true;
-      }
-      
-      // Check random streak reset
-      const solvedRandomToday = todayData && todayData.solvedRandom;
-      const solvedRandomYesterday = yesterdayData && yesterdayData.solvedRandom;
-      
-      if (!solvedRandomToday && !solvedRandomYesterday && streakModel.streakData.randomStreak > 0) {
-        logger.info('BackgroundService.checkStreakResetWithServerValidation', 
-          'Resetting random streak due to confirmed missed days');
-        streakModel.streakData.randomStreak = 0;
-        streakModel.streakData.lastRandomDate = null;
-        hasChanges = true;
-      }
-      
-      if (hasChanges) {
-        await streakModel.save();
-      }
-      
-    } catch (error) {
-      logger.error('BackgroundService.checkStreakResetWithServerValidation', 'Error checking streak reset', error);
-    }
+  async setupGuestUser() {
+    this.currentUser = null;
+    this.currentUserRating = null;
+    this.userVerified = true;
+    this.streakModel = new window.StreakModel(null);
+    
+    await this.completeSetup();
   }
 
   /**
-   * Get today's problems for a user
+   * Setup for verified user
    * @param {string} username - Username
-   * @returns {Promise<Object|null>} Today's problems or null
+   * @param {Object} userInfo - User information from API
    */
-  async getTodayProblems(username) {
+  async setupVerifiedUser(username, userInfo) {
+    this.currentUser = username;
+    this.currentUserRating = userInfo.rating || window.CONFIG.PROBLEMS.DEFAULT_USER_RATING;
+    this.userVerified = true;
+    this.streakModel = new window.StreakModel(username);
+    
+    window.logger.info('MainController.setupVerifiedUser', `User verified: ${username}, Rating: ${this.currentUserRating}`);
+    
+    await this.completeSetup();
+  }
+
+  /**
+   * Complete extension setup
+   */
+  async completeSetup() {
     try {
-      const today = DateUtils.getUTCDateString();
+      // Load streak data
+      await this.streakModel.load();
       
-      const globalCacheKey = `${CONFIG.CACHE.KEYS.GLOBAL_PREFIX}${today}`;
-      const userCacheKey = `${CONFIG.CACHE.KEYS.USER_PREFIX}${username}-${today}`;
+      // Create UI elements
+      this.createFloatingButton();
+      this.createModal();
       
-      const globalCache = await StorageService.get(globalCacheKey);
-      const userCache = await StorageService.get(userCacheKey);
+      // Load daily problems
+      await this.loadDailyProblems();
       
-      if (globalCache && userCache) {
-        return {
-          ratingBased: userCache.ratingProblem,
-          random: globalCache.randomProblem
-        };
+      window.logger.info('MainController.completeSetup', 'Extension setup completed');
+    } catch (error) {
+      window.logger.error('MainController.completeSetup', 'Error completing setup', error);
+    }
+  }
+
+  /**
+   * Create floating action button
+   */
+  createFloatingButton() {
+    const button = document.createElement('div');
+    button.id = window.CONFIG.UI.BUTTON_ID;
+    button.innerHTML = `
+      <div class="cf-daily-fab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z" fill="currentColor"/>
+        </svg>
+        <span>Daily</span>
+      </div>
+    `;
+    
+    button.addEventListener('click', () => this.openModal());
+    document.body.appendChild(button);
+    
+    window.logger.debug('MainController.createFloatingButton', 'Floating button created');
+  }
+
+  /**
+   * Create modal dialog
+   */
+  createModal() {
+    const modal = document.createElement('div');
+    modal.id = window.CONFIG.UI.MODAL_ID;
+    modal.innerHTML = `
+      <div class="cf-modal-overlay">
+        <div class="cf-modal-content">
+          <div class="cf-modal-header">
+            <h2>Daily Problems</h2>
+            <button class="cf-modal-close" id="cf-modal-close">×</button>
+          </div>
+          <div class="cf-modal-body" id="cf-modal-body">
+            ${window.UIComponents.renderLoadingState()}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Event listeners
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal.querySelector('.cf-modal-overlay')) {
+        this.closeModal();
+      }
+    });
+
+    modal.querySelector('#cf-modal-close').addEventListener('click', () => {
+      this.closeModal();
+    });
+
+    document.body.appendChild(modal);
+    
+    window.logger.debug('MainController.createModal', 'Modal created');
+  }
+
+  /**
+   * Load daily problems for a specific date
+   * @param {Date} date - Date to load problems for
+   */
+  async loadDailyProblems(date = new Date()) {
+    try {
+      window.logger.info('MainController.loadDailyProblems', `Loading problems for ${window.DateUtils.getUTCDateString(date)}`);
+      
+      this.dailyProblems = await window.ProblemService.loadDailyProblems(
+        this.currentUser, 
+        this.currentUserRating, 
+        this.userVerified, 
+        date
+      );
+      
+      // Check solutions for today's problems
+      if (window.DateUtils.getUTCDateString(date) === window.DateUtils.getUTCDateString()) {
+        await this.checkTodaysSolutions();
       }
       
-      return null;
     } catch (error) {
-      logger.error('BackgroundService.getTodayProblems', 'Error getting today\'s problems', error);
-      return null;
+      window.logger.error('MainController.loadDailyProblems', 'Error loading daily problems', error);
+      this.dailyProblems = { error: 'Failed to load problems. Please try again later.' };
     }
   }
 
   /**
-   * Clean up old cached data
+   * Check if user solved today's problems
    */
-  async cleanupOldCache() {
+  async checkTodaysSolutions() {
     try {
-      logger.info('BackgroundService.cleanupOldCache', 'Cleaning up old cache');
-      await StorageService.clearOldCache(CONFIG.CACHE.DURATION_HOURS);
+      await window.ProblemService.checkTodaysSolutions(
+        this.currentUser, 
+        this.userVerified, 
+        this.dailyProblems, 
+        this.streakModel
+      );
     } catch (error) {
-      logger.error('BackgroundService.cleanupOldCache', 'Error cleaning up cache', error);
+      window.logger.error('MainController.checkTodaysSolutions', 'Error checking solutions', error);
     }
   }
 
   /**
-   * Handle messages from content script
-   * @param {Object} message - Message object
-   * @param {Object} sender - Sender information
-   * @param {Function} sendResponse - Response function
+   * Open modal dialog
    */
-  handleMessage(message, sender, sendResponse) {
-    switch (message.action) {
-      case 'getCachedProblems':
-        StorageService.get('cf-daily-cache').then(sendResponse);
-        break;
-        
-      case 'setCachedProblems':
-        StorageService.set('cf-daily-cache', message.data).then(() => {
-          sendResponse({ success: true });
-        });
-        break;
-        
-      default:
-        logger.warn('BackgroundService.handleMessage', `Unknown message action: ${message.action}`);
-        sendResponse({ error: 'Unknown action' });
+  openModal() {
+    const modal = document.getElementById(window.CONFIG.UI.MODAL_ID);
+    modal.style.display = 'flex';
+    this.isModalOpen = true;
+    
+    setTimeout(() => {
+      modal.classList.add('cf-modal-open');
+    }, 10);
+
+    this.displayProblems();
+    window.logger.debug('MainController.openModal', 'Modal opened');
+  }
+
+  /**
+   * Close modal dialog
+   */
+  closeModal() {
+    const modal = document.getElementById(window.CONFIG.UI.MODAL_ID);
+    modal.classList.remove('cf-modal-open');
+    
+    setTimeout(() => {
+      modal.style.display = 'none';
+      this.isModalOpen = false;
+    }, window.CONFIG.UI.ANIMATION_DURATION);
+
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+    
+    window.logger.debug('MainController.closeModal', 'Modal closed');
+  }
+
+  /**
+   * Toggle calendar view
+   */
+  toggleCalendarView() {
+    this.isCalendarView = !this.isCalendarView;
+    if (this.isCalendarView) {
+      this.calendarDate = new Date();
+    }
+    this.displayProblems();
+    
+    window.logger.debug('MainController.toggleCalendarView', `Calendar view: ${this.isCalendarView}`);
+  }
+
+  /**
+   * Change calendar month
+   * @param {number} direction - Direction to change (-1 or 1)
+   */
+  changeCalendarMonth(direction) {
+    this.calendarDate.setMonth(this.calendarDate.getMonth() + direction);
+    this.displayProblems();
+    
+    window.logger.debug('MainController.changeCalendarMonth', `Changed month by ${direction}`);
+  }
+
+  /**
+   * View problems for a specific date
+   * @param {string} dateString - Date string (YYYY-MM-DD)
+   */
+  async viewDateProblems(dateString) {
+    this.selectedDate = dateString;
+    this.isCalendarView = false;
+    const date = new Date(dateString + 'T00:00:00.000Z');
+    await this.loadDailyProblems(date);
+    this.displayProblems();
+    
+    window.logger.debug('MainController.viewDateProblems', `Viewing problems for ${dateString}`);
+  }
+
+  /**
+   * Display problems in modal
+   */
+  async displayProblems() {
+    const modalBody = document.getElementById('cf-modal-body');
+    
+    if (this.isCalendarView) {
+      modalBody.innerHTML = window.CalendarComponent.generateCalendar(this.streakModel, this.calendarDate);
+      return;
+    }
+    
+    if (!this.dailyProblems) {
+      modalBody.innerHTML = window.UIComponents.renderLoadingState();
+      return;
+    }
+
+    if (this.dailyProblems.error) {
+      modalBody.innerHTML = window.UIComponents.renderErrorState(this.dailyProblems.error);
+      return;
+    }
+
+    // Check if showing today's problems
+    const today = window.DateUtils.getUTCDateString();
+    const isToday = this.dailyProblems.date === today;
+    
+    if (isToday) {
+      await this.checkTodaysSolutions();
+      // Validate streaks to ensure accuracy
+      await this.streakModel.validateAndFixStreaks();
+    }
+
+    const { userRating, isLoggedIn, ratingBased, random } = this.dailyProblems;
+    const todayCompleted = this.streakModel.isTodayCompleted();
+    const streakStatus = this.streakModel.getStreakStatus();
+    
+    modalBody.innerHTML = this.renderProblemsContent(
+      userRating, isLoggedIn, ratingBased, random, 
+      isToday, todayCompleted, this.dailyProblems.date, streakStatus
+    );
+
+    if (isToday) {
+      this.startCountdown();
     }
   }
-}
 
-// Initialize background service
-new BackgroundService();
+  /**
+   * Render problems content HTML
+   * @param {number} userRating - User rating
+   * @param {boolean} isLoggedIn - Login status
+   * @param {Object} ratingBased - Rating-based problem
+   * @param {Object} random - Random problem
+   * @param {boolean} isToday - Whether showing today
+   * @param {Object} todayCompleted - Today's completion status
+   * @param {string} dateString - Date string
+   * @param {Object} streakStatus - Current streak status
+   * @returns {string} HTML content
+   */
+  renderProblemsContent(userRating, isLoggedIn, ratingBased, random, isToday, todayCompleted, dateString, streakStatus) {
+    return `
+      <div class="cf-problems-container">
+        ${isToday ? window.UIComponents.renderCountdownTimer(window.DateUtils.getTimeUntilNextUTCDay()) : ''}
+        
+        ${window.UIComponents.renderStreakSection(
+          streakStatus || this.streakModel.streakData, 
+          todayCompleted, 
+          streakStatus?.serverDataStale
+        )}
+        
+        ${window.UIComponents.renderUserInfo(
+          this.currentUser, userRating, this.userVerified, 
+          isLoggedIn, isToday, dateString
+        )}
+        
+        <div class="cf-problem-section">
+          <h4>${isLoggedIn ? 'Rating-Based Problem' : 'Beginner Problem'}</h4>
+          <p class="cf-section-desc">${isLoggedIn ? 'Problem tailored to your skill level' : 'Problem for rating 1100-1500'}</p>
+          ${window.UIComponents.renderProblemCard(ratingBased, 'rating', todayCompleted.personalized)}
+        </div>
+        
+        <div class="cf-problem-section">
+          <h4>Daily Random Problem</h4>
+          <p class="cf-section-desc">Universal challenge for all users (same globally)</p>
+          ${window.UIComponents.renderProblemCard(random, 'random', todayCompleted.random)}
+        </div>
+        
+        ${isLoggedIn ? `
+          <div class="cf-refresh-section">
+            <button class="cf-refresh-solutions-btn" onclick="window.cfDaily.checkTodaysSolutions().then(() => window.cfDaily.displayProblems())">
+              🔄 Check for New Solutions
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Start countdown timer
+   */
+  startCountdown() {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
+
+    this.countdownInterval = setInterval(() => {
+      this.updateCountdownDisplay();
+    }, 1000);
+  }
+
+  /**
+   * Update countdown display
+   */
+  updateCountdownDisplay() {
+    const countdownElement = document.querySelector('.cf-countdown-timer');
+    if (!countdownElement) return;
+
+    const timeLeft = window.DateUtils.getTimeUntilNextUTCDay();
+
+    countdownElement.innerHTML = `
+      <div class="cf-countdown-display">
+        <span class="cf-countdown-icon">⏰</span>
+        <span class="cf-countdown-label">Next problems in:</span>
+        <span class="cf-countdown-time">${timeLeft.hours}:${timeLeft.minutes}:${timeLeft.seconds}</span>
+      </div>
+    `;
+  }
+};
